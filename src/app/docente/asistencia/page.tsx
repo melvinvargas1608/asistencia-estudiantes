@@ -224,10 +224,13 @@ export default function AsistenciaPage() {
                 </div>
 
                 <div className="p-4 sm:p-8">
-                    {error && (
+                    {error && !scanning && (
                         <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 text-red-600 text-sm animate-in fade-in slide-in-from-top-2">
                             <XCircle className="w-5 h-5 shrink-0" />
-                            <p className="font-medium">{error}</p>
+                            <p className="font-medium flex-1">{error}</p>
+                            <button onClick={() => setError(null)} className="p-1 hover:bg-red-100 rounded-full transition-colors">
+                                <XCircle className="w-4 h-4" />
+                            </button>
                         </div>
                     )}
 
