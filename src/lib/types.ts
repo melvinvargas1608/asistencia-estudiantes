@@ -35,6 +35,18 @@ export interface Asistencia {
     estudiantes?: Pick<Estudiante, 'nombre' | 'apellido' | 'numero_identidad' | 'grado' | 'seccion' | 'jornada'>
 }
 
+export interface Justificacion {
+    id: string
+    estudiante_id: string
+    fecha: string // The date of the absence
+    tipo: 'permiso' | 'excusa'
+    motivo: string
+    archivo_url?: string | null // Evidence link
+    estado: 'pendiente' | 'aprobada' | 'rechazada'
+    created_at: string
+    estudiantes?: Pick<Estudiante, 'nombre' | 'apellido' | 'numero_identidad' | 'grado' | 'seccion'>
+}
+
 export interface AttendanceReport {
     fecha: string
     estudiante_id: string

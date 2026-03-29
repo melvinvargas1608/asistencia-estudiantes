@@ -3,12 +3,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { parseQRPayload } from '@/lib/qr'
-import { QrCode, CheckCircle2, XCircle, RefreshCw, Camera, Image as ImageIcon, Users, ListFilter, UserCheck, UserMinus } from 'lucide-react'
+import { QrCode, CheckCircle2, XCircle, RefreshCw, Camera, Image as ImageIcon, Users, ListFilter, UserCheck, UserMinus, FileText, FileCheck, FileX, Clock, CalendarIcon, ExternalLink } from 'lucide-react'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import type { Estudiante } from '@/lib/types'
+import type { Estudiante, Justificacion } from '@/lib/types'
 
 type ScanResult = {
     student: Estudiante
@@ -20,7 +20,11 @@ export default function AsistenciaPage() {
     const html5QrRef = useRef<any>(null)
     const [scanning, setScanning] = useState(false)
     const [docenteId, setDocenteId] = useState<string | null>(null)
-    const [activeTab, setActiveTab] = useState<'scanner' | 'summary'>('scanner')
+    const [activeTab, setActiveTab] = useState<'scanner' | 'summary' | 'justificaciones'>('scanner')
+
+    // States for Justificaciones
+    const [justificaciones, setJustificaciones] = useState<Justificacion[]>([])
+    const [loadingJustificaciones, setLoadingJustificaciones] = useState(false)
 
     // States for Scanner
     const [results, setResults] = useState<ScanResult[]>([])
@@ -35,6 +39,7 @@ export default function AsistenciaPage() {
     // States for Summary
     const [allStudents, setAllStudents] = useState<Estudiante[]>([])
     const [todayAttendance, setTodayAttendance] = useState<Record<string, boolean>>({})
+    const [todayJustifs, setTodayJustifs] = useState<Record<string, 'permiso'|'excusa'>>({})
     const [loadingSummary, setLoadingSummary] = useState(false)
 
     const today = format(new Date(), "EEEE, d 'de' MMMM yyyy", { locale: es })
@@ -81,40 +86,48 @@ export default function AsistenciaPage() {
         const attendanceMap: Record<string, boolean> = {}
         records?.forEach(r => attendanceMap[r.estudiante_id] = true)
         setTodayAttendance(attendanceMap)
+
+        // Fetch today's justifications
+        const { data: justifs } = await supabase
+            .from('justificaciones')
+            .select('estudiante_id, tipo')
+            .eq('fecha', todayStr)
+
+        const justifsMap: Record<string, 'permiso'|'excusa'> = {}
+        justifs?.forEach(j => justifsMap[j.estudiante_id] = j.tipo as 'permiso'|'excusa')
+        setTodayJustifs(justifsMap)
+
         setLoadingSummary(false)
     }
 
-    async function toggleAttendance(student: Estudiante) {
-        const isPresent = todayAttendance[student.id]
+    async function setStudentStatus(student: Estudiante, status: 'presente' | 'ausente' | 'permiso' | 'excusa') {
         const supabase = createClient()
+        
+        // Remove existing records for today
+        await supabase.from('asistencia').delete().eq('estudiante_id', student.id).eq('fecha', todayStr)
+        await supabase.from('justificaciones').delete().eq('estudiante_id', student.id).eq('fecha', todayStr)
 
-        if (isPresent) {
-            // Remove
-            const { error } = await supabase
-                .from('asistencia')
-                .delete()
-                .eq('estudiante_id', student.id)
-                .eq('fecha', todayStr)
-
-            if (!error) {
-                setTodayAttendance(prev => {
-                    const next = { ...prev }
-                    delete next[student.id]
-                    return next
-                })
-            }
+        if (status === 'presente') {
+            await supabase.from('asistencia').insert({ estudiante_id: student.id, fecha: todayStr, presente: true })
+            setTodayAttendance(prev => ({...prev, [student.id]: true}))
+            setTodayJustifs(prev => { const n = {...prev}; delete n[student.id]; return n })
+        } else if (status === 'permiso' || status === 'excusa') {
+            await supabase.from('justificaciones').insert({ 
+                estudiante_id: student.id, 
+                fecha: todayStr, 
+                tipo: status, 
+                estado: 'aprobada', 
+                motivo: 'Registrado directamente por el docente' 
+            })
+            setTodayJustifs(prev => ({...prev, [student.id]: status}))
+            setTodayAttendance(prev => { const n = {...prev}; delete n[student.id]; return n })
         } else {
-            // Add
-            const { error } = await supabase
-                .from('asistencia')
-                .insert({ estudiante_id: student.id, fecha: todayStr, presente: true })
-
-            if (!error) {
-                setTodayAttendance(prev => ({ ...prev, [student.id]: true }))
-                // Trigger success visual if needed
-                if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(100)
-            }
+            // ausente
+            setTodayAttendance(prev => { const n = {...prev}; delete n[student.id]; return n })
+            setTodayJustifs(prev => { const n = {...prev}; delete n[student.id]; return n })
         }
+        
+        if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50)
     }
 
     async function startScanner() {
@@ -273,7 +286,7 @@ export default function AsistenciaPage() {
                         }`}
                 >
                     <Users className="w-4 h-4" />
-                    Resumen Diario
+                    Resumen
                 </button>
             </div>
 
@@ -361,7 +374,7 @@ export default function AsistenciaPage() {
                         </div>
                     </div>
                 </div>
-            ) : (
+            ) : activeTab === 'summary' ? (
                 /* SUMMARY TAB */
                 <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300 mx-4 sm:mx-0">
                     <div className="grid grid-cols-2 gap-4">
@@ -399,32 +412,51 @@ export default function AsistenciaPage() {
                                 <div className="p-20 text-center"><RefreshCw className="w-8 h-8 text-indigo-300 animate-spin mx-auto" /><p className="mt-4 text-slate-400 font-medium">Cargando lista...</p></div>
                             ) : allStudents.map((s) => {
                                 const isPresent = todayAttendance[s.id]
+                                const justif = todayJustifs[s.id]
+                                const status = isPresent ? 'presente' : justif ? justif : 'ausente'
+                                
                                 return (
-                                    <div key={s.id} className="flex items-center gap-4 px-5 py-4 hover:bg-slate-50/50 transition-colors">
-                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs ${isPresent ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'
-                                            }`}>
-                                            {s.nombre[0]}{s.apellido[0]}
+                                    <div key={s.id} className="flex flex-col sm:flex-row sm:items-center gap-4 px-5 py-4 hover:bg-slate-50/50 transition-colors">
+                                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${
+                                                status === 'presente' ? 'bg-emerald-100 text-emerald-600' : 
+                                                status === 'permiso' ? 'bg-indigo-100 text-indigo-600' :
+                                                status === 'excusa' ? 'bg-orange-100 text-orange-600' :
+                                                'bg-slate-100 text-slate-400'
+                                                }`}>
+                                                {s.nombre[0]}{s.apellido[0]}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-bold text-slate-800 text-sm truncate uppercase">{s.nombre} {s.apellido}</p>
+                                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">ID: {s.numero_identidad}</p>
+                                            </div>
                                         </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="font-bold text-slate-800 text-sm truncate uppercase">{s.nombre} {s.apellido}</p>
-                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">ID: {s.numero_identidad}</p>
+                                        
+                                        <div className="flex bg-slate-100/50 p-1.5 rounded-xl gap-1 shrink-0 self-start sm:self-auto overflow-x-auto w-full sm:w-auto">
+                                            <label className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[10px] font-black cursor-pointer transition-all border-2 border-transparent ${status === 'presente' ? 'bg-emerald-500 text-white shadow-md border-emerald-500' : 'bg-white text-slate-400 hover:text-emerald-500 hover:border-emerald-100'}`}>
+                                                <input type="radio" className="hidden" checked={status === 'presente'} onChange={() => setStudentStatus(s, 'presente')} />
+                                                PRESENTE
+                                            </label>
+                                            <label className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[10px] font-black cursor-pointer transition-all border-2 border-transparent ${status === 'ausente' ? 'bg-red-500 text-white shadow-md border-red-500' : 'bg-white text-slate-400 hover:text-red-500 hover:border-red-100'}`}>
+                                                <input type="radio" className="hidden" checked={status === 'ausente'} onChange={() => setStudentStatus(s, 'ausente')} />
+                                                AUSENTE
+                                            </label>
+                                            <label className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[10px] font-black cursor-pointer transition-all border-2 border-transparent ${status === 'permiso' ? 'bg-indigo-500 text-white shadow-md border-indigo-500' : 'bg-white text-slate-400 hover:text-indigo-500 hover:border-indigo-100'}`}>
+                                                <input type="radio" className="hidden" checked={status === 'permiso'} onChange={() => setStudentStatus(s, 'permiso')} />
+                                                PERMISO
+                                            </label>
+                                            <label className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[10px] font-black cursor-pointer transition-all border-2 border-transparent ${status === 'excusa' ? 'bg-orange-500 text-white shadow-md border-orange-500' : 'bg-white text-slate-400 hover:text-orange-500 hover:border-orange-100'}`}>
+                                                <input type="radio" className="hidden" checked={status === 'excusa'} onChange={() => setStudentStatus(s, 'excusa')} />
+                                                EXCUSA
+                                            </label>
                                         </div>
-                                        <button
-                                            onClick={() => toggleAttendance(s)}
-                                            className={`h-9 px-4 rounded-xl text-[10px] font-black transition-all active:scale-95 ${isPresent
-                                                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-100'
-                                                    : 'bg-white border-2 border-slate-100 text-slate-400 hover:border-indigo-100 hover:text-indigo-500'
-                                                }`}
-                                        >
-                                            {isPresent ? 'PRESENTE' : 'AUSENTE'}
-                                        </button>
                                     </div>
                                 )
                             })}
                         </div>
                     </div>
                 </div>
-            )}
+            ) : null}
 
             {activeTab === 'scanner' && results.length > 0 && (
                 <div className="bg-white sm:rounded-3xl border border-slate-200 shadow-xl overflow-hidden animate-in slide-in-from-bottom-4 mx-4 sm:mx-0">
