@@ -1,16 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { BookOpen, Eye, EyeOff, GraduationCap, Users } from 'lucide-react'
 import Button from '@/components/ui/Button'
-import Input from '@/components/ui/Input'
 import Link from 'next/link'
 
 type Role = 'docente' | 'estudiante'
 
-export default function LoginPage() {
+function LoginContent() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const roleParam = searchParams.get('role') as Role | null
@@ -36,7 +35,6 @@ export default function LoginPage() {
         const supabase = createClient()
 
         try {
-            // Sanitize identity number: remove dashes and spaces
             const sanitizedId = numeroIdentidad.replace(/[-\s]/g, '').trim()
 
             if (sanitizedId.length !== 13) {
@@ -45,17 +43,14 @@ export default function LoginPage() {
                 return
             }
 
-            // We derive the email from the (sanitized) identity number
             const email = `${sanitizedId}@asistencia.edu`
 
-            // Sign in directly
             const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
                 email,
                 password,
             })
 
             if (signInError) {
-                // If sign in fails, it's either wrong password or user doesn't exist
                 if (signInError.message.includes('Invalid login credentials')) {
                     setError('Número de identidad o contraseña incorrectos.')
                 } else {
@@ -65,7 +60,6 @@ export default function LoginPage() {
                 return
             }
 
-            // After sign in, we can safely query the profile since auth.uid() will be set
             const table = role === 'docente' ? 'docentes' : 'estudiantes'
             const { data: profile } = await supabase
                 .from(table)
@@ -74,7 +68,6 @@ export default function LoginPage() {
                 .single()
 
             if (!profile) {
-                // Wrong role selected or profile not found
                 await supabase.auth.signOut()
                 setError(`Este número de identidad no está registrado como ${role === 'docente' ? 'Docente' : 'Estudiante'}.`)
                 setLoading(false)
@@ -95,14 +88,12 @@ export default function LoginPage() {
 
     return (
         <main className="min-h-screen bg-gradient-to-br from-indigo-950 via-indigo-900 to-slate-900 flex items-center justify-center p-6">
-            {/* Background decorations */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute -top-40 -right-40 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl" />
                 <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
             </div>
 
             <div className="relative z-10 w-full max-w-md">
-                {/* Logo */}
                 <div className="text-center mb-8">
                     <Link href="/" className="inline-flex items-center gap-3 mb-4">
                         <div className="w-12 h-12 rounded-xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center">
@@ -113,9 +104,9 @@ export default function LoginPage() {
                     <h1 className="text-xl font-semibold text-white">Iniciar Sesión</h1>
                 </div>
 
-                {/* Role toggle */}
                 <div className="flex gap-2 mb-6 p-1 bg-white/5 rounded-xl border border-white/10">
                     <button
+                        type="button"
                         onClick={() => { setRole('docente'); setError(null) }}
                         className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium transition-all ${role === 'docente'
                             ? 'bg-indigo-600 text-white shadow-sm'
@@ -125,6 +116,7 @@ export default function LoginPage() {
                         <Users className="w-4 h-4" /> Docente
                     </button>
                     <button
+                        type="button"
                         onClick={() => { setRole('estudiante'); setError(null) }}
                         className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium transition-all ${role === 'estudiante'
                             ? 'bg-emerald-600 text-white shadow-sm'
@@ -135,7 +127,6 @@ export default function LoginPage() {
                     </button>
                 </div>
 
-                {/* Form */}
                 <form
                     onSubmit={handleSubmit}
                     className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 space-y-4"
@@ -196,5 +187,17 @@ export default function LoginPage() {
                 </div>
             </div>
         </main>
+    )
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-indigo-950 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+            </div>
+        }>
+            <LoginContent />
+        </Suspense>
     )
 }
