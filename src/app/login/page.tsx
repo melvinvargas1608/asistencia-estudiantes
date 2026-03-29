@@ -269,8 +269,8 @@ function LoginForm() {
                                             onClick={() => { setView('activate'); setError(null); setRole('estudiante'); }}
                                             className="text-sm font-bold text-slate-600 hover:text-slate-800 flex items-center justify-center gap-2 mx-auto transition-colors"
                                         >
-                                            <Users className="w-4 h-4" />
-                                            Acceder como Padre de Familia
+                                            <GraduationCap className="w-4 h-4" />
+                                            Crear contraseña del estudiante
                                         </button>
                                     </>
                                 )}
