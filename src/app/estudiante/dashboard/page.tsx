@@ -39,7 +39,7 @@ export default function EstudianteDashboard() {
                 .limit(30)
 
             const combined: any[] = []
-            att?.forEach(a => combined.push({ id: `att-${a.id}`, fecha: a.fecha, estado: 'presente' }))
+            att?.forEach(a => combined.push({ id: `att-${a.id}`, fecha: a.fecha, estado: a.presente ? 'presente' : 'ausente' }))
             justs?.forEach(j => combined.push({ id: `jus-${j.id}`, fecha: j.fecha, estado: j.tipo }))
 
             combined.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())

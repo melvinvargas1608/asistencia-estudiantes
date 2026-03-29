@@ -80,11 +80,15 @@ export default function AsistenciaPage() {
         // Fetch today's records
         const { data: records } = await supabase
             .from('asistencia')
-            .select('estudiante_id')
+            .select('estudiante_id, presente')
             .eq('fecha', todayStr)
 
         const attendanceMap: Record<string, boolean> = {}
-        records?.forEach(r => attendanceMap[r.estudiante_id] = true)
+        records?.forEach(r => {
+            if (r.presente !== null) {
+                attendanceMap[r.estudiante_id] = r.presente
+            }
+        })
         setTodayAttendance(attendanceMap)
 
         // Fetch today's justifications
@@ -122,8 +126,9 @@ export default function AsistenciaPage() {
             setTodayJustifs(prev => ({...prev, [student.id]: status}))
             setTodayAttendance(prev => { const n = {...prev}; delete n[student.id]; return n })
         } else {
-            // ausente
-            setTodayAttendance(prev => { const n = {...prev}; delete n[student.id]; return n })
+            // ausente explícito en DB
+            await supabase.from('asistencia').insert({ estudiante_id: student.id, fecha: todayStr, presente: false })
+            setTodayAttendance(prev => ({...prev, [student.id]: false}))
             setTodayJustifs(prev => { const n = {...prev}; delete n[student.id]; return n })
         }
         
@@ -413,7 +418,7 @@ export default function AsistenciaPage() {
                             ) : allStudents.map((s) => {
                                 const isPresent = todayAttendance[s.id]
                                 const justif = todayJustifs[s.id]
-                                const status = isPresent ? 'presente' : justif ? justif : 'ausente'
+                                const status = isPresent === true ? 'presente' : justif ? justif : 'ausente'
                                 
                                 return (
                                     <div key={s.id} className="flex flex-col sm:flex-row sm:items-center gap-4 px-5 py-4 hover:bg-slate-50/50 transition-colors">
