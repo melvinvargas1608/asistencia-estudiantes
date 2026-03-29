@@ -156,6 +156,13 @@ function LoginForm() {
         }
     }
 
+    const handleRoleChange = (newRole: 'docente' | 'estudiante') => {
+        setRole(newRole)
+        setDni('')
+        setPassword('')
+        setError(null)
+    }
+
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 font-sans">
             <div className="sm:mx-auto sm:w-full sm:max-w-md">
@@ -184,7 +191,7 @@ function LoginForm() {
                             <div className="flex bg-slate-100 p-1 rounded-2xl">
                                 <button
                                     type="button"
-                                    onClick={() => setRole('docente')}
+                                    onClick={() => handleRoleChange('docente')}
                                     className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-bold transition-all ${role === 'docente' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
                                         }`}
                                 >
@@ -193,7 +200,7 @@ function LoginForm() {
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => setRole('estudiante')}
+                                    onClick={() => handleRoleChange('estudiante')}
                                     className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-bold transition-all ${role === 'estudiante' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
                                         }`}
                                 >
