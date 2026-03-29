@@ -1,203 +1,313 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
+import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { BookOpen, Eye, EyeOff, GraduationCap, Users } from 'lucide-react'
+import { LogIn, UserCircle, ShieldCheck, AlertCircle, Eye, EyeOff, UserPlus, ArrowLeft, GraduationCap, School } from 'lucide-react'
 import Button from '@/components/ui/Button'
-import Link from 'next/link'
+import { GRADOS, SECCIONES } from '@/lib/types'
 
-type Role = 'docente' | 'estudiante'
-
-function LoginContent() {
+function LoginForm() {
     const router = useRouter()
     const searchParams = useSearchParams()
-    const roleParam = searchParams.get('role') as Role | null
+    const [view, setView] = useState<'login' | 'register'>('login')
 
-    const [role, setRole] = useState<Role>(roleParam || 'docente')
-    const [numeroIdentidad, setNumeroIdentidad] = useState('')
+    // Login States
+    const [role, setRole] = useState<'docente' | 'estudiante'>('docente')
+    const [dni, setDni] = useState('')
     const [password, setPassword] = useState('')
     const [showPassword, setShowPassword] = useState(false)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
-    useEffect(() => {
-        if (roleParam === 'docente' || roleParam === 'estudiante') {
-            setRole(roleParam)
-        }
-    }, [roleParam])
+    // Register States
+    const [regNombre, setRegNombre] = useState('')
+    const [regApellido, setRegApellido] = useState('')
+    const [regDni, setRegDni] = useState('')
+    const [regGrado, setRegGrado] = useState('')
+    const [regSeccion, setRegSeccion] = useState('')
+    const [regPassword, setRegPassword] = useState('')
 
-    async function handleSubmit(e: React.FormEvent) {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault()
         setError(null)
         setLoading(true)
 
-        const supabase = createClient()
-
         try {
-            const sanitizedId = numeroIdentidad.replace(/[-\s]/g, '').trim()
-
-            if (sanitizedId.length !== 13) {
-                setError('El número de identidad debe tener exactamente 13 dígitos.')
-                setLoading(false)
-                return
+            const sanitizedDni = dni.replace(/[-\s]/g, '').trim()
+            if (sanitizedDni.length !== 13) {
+                throw new Error('El DNI debe tener 13 dígitos exactos.')
             }
 
-            const email = `${sanitizedId}@asistencia.edu`
+            const email = role === 'docente'
+                ? `${sanitizedDni}@docente.edu`
+                : `${sanitizedDni}@asistencia.edu`
 
-            const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
+            const supabase = createClient()
+            const { error: signInError } = await supabase.auth.signInWithPassword({
                 email,
                 password,
             })
 
             if (signInError) {
                 if (signInError.message.includes('Invalid login credentials')) {
-                    setError('Número de identidad o contraseña incorrectos.')
-                } else {
-                    setError('Error al iniciar sesión: ' + signInError.message)
+                    throw new Error('DNI o contraseña incorrectos.')
                 }
-                setLoading(false)
-                return
+                throw signInError
             }
 
-            const table = role === 'docente' ? 'docentes' : 'estudiantes'
-            const { data: profile } = await supabase
-                .from(table)
-                .select('id')
-                .eq('auth_user_id', authData.user?.id)
-                .single()
+            const next = searchParams.get('next')
+            router.push(next || (role === 'docente' ? '/docente' : '/estudiante'))
+            router.refresh()
+        } catch (err: any) {
+            setError(err.message || 'Error al iniciar sesión')
+            setLoading(false)
+        }
+    }
 
-            if (!profile) {
-                await supabase.auth.signOut()
-                setError(`Este número de identidad no está registrado como ${role === 'docente' ? 'Docente' : 'Estudiante'}.`)
-                setLoading(false)
-                return
-            }
+    const handleRegister = async (e: React.FormEvent) => {
+        e.preventDefault()
+        setError(null)
 
-            if (role === 'docente') {
-                router.push('/docente/dashboard')
-            } else {
-                router.push('/estudiante/dashboard')
-            }
-        } catch {
-            setError('Error inesperado. Intente de nuevo.')
-        } finally {
+        const sanitizedDni = regDni.replace(/[-\s]/g, '').trim()
+        if (sanitizedDni.length !== 13) {
+            setError('El DNI debe tener 13 dígitos.')
+            return
+        }
+
+        setLoading(true)
+        try {
+            const res = await fetch('/api/register-teacher', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    nombre: regNombre,
+                    apellido: regApellido,
+                    numero_identidad: sanitizedDni,
+                    grado: regGrado,
+                    seccion: regSeccion,
+                    password: regPassword
+                })
+            })
+
+            const data = await res.json()
+            if (!res.ok) throw new Error(data.error)
+
+            // Auto-login after register
+            const supabase = createClient()
+            await supabase.auth.signInWithPassword({
+                email: `${sanitizedDni}@docente.edu`,
+                password: regPassword
+            })
+
+            router.push('/docente')
+            router.refresh()
+        } catch (err: any) {
+            setError(err.message)
             setLoading(false)
         }
     }
 
     return (
-        <main className="min-h-screen bg-gradient-to-br from-indigo-950 via-indigo-900 to-slate-900 flex items-center justify-center p-6">
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute -top-40 -right-40 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl" />
-                <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
+        <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 font-sans">
+            <div className="sm:mx-auto sm:w-full sm:max-w-md">
+                <div className="flex justify-center">
+                    <div className="bg-indigo-600 p-3 rounded-2xl shadow-xl shadow-indigo-100">
+                        <ShieldCheck className="w-10 h-10 text-white" />
+                    </div>
+                </div>
+                <h2 className="mt-6 text-center text-3xl font-black text-slate-900 tracking-tight">
+                    {view === 'login' ? 'Bienvenido de nuevo' : 'Registro de Docente'}
+                </h2>
+                <p className="mt-2 text-center text-sm text-slate-500 font-medium">
+                    {view === 'login'
+                        ? 'Sistema de Control de Asistencia Escolar'
+                        : 'Crea tu perfil para empezar a gestionar la asistencia'}
+                </p>
             </div>
 
-            <div className="relative z-10 w-full max-w-md">
-                <div className="text-center mb-8">
-                    <Link href="/" className="inline-flex items-center gap-3 mb-4">
-                        <div className="w-12 h-12 rounded-xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center">
-                            <BookOpen className="w-6 h-6 text-indigo-400" />
-                        </div>
-                        <span className="text-2xl font-bold text-white">AsistenciaEdu</span>
-                    </Link>
-                    <h1 className="text-xl font-semibold text-white">Iniciar Sesión</h1>
-                </div>
+            <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+                <div className="bg-white py-8 px-4 shadow-2xl shadow-slate-200 border border-slate-100 sm:rounded-3xl sm:px-10">
 
-                <div className="flex gap-2 mb-6 p-1 bg-white/5 rounded-xl border border-white/10">
-                    <button
-                        type="button"
-                        onClick={() => { setRole('docente'); setError(null) }}
-                        className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium transition-all ${role === 'docente'
-                            ? 'bg-indigo-600 text-white shadow-sm'
-                            : 'text-slate-400 hover:text-white'
-                            }`}
-                    >
-                        <Users className="w-4 h-4" /> Docente
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => { setRole('estudiante'); setError(null) }}
-                        className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium transition-all ${role === 'estudiante'
-                            ? 'bg-emerald-600 text-white shadow-sm'
-                            : 'text-slate-400 hover:text-white'
-                            }`}
-                    >
-                        <GraduationCap className="w-4 h-4" /> Estudiante
-                    </button>
-                </div>
+                    {view === 'login' ? (
+                        /* LOGIN VIEW */
+                        <form className="space-y-6" onSubmit={handleLogin}>
+                            {/* Role Selector */}
+                            <div className="flex bg-slate-100 p-1 rounded-2xl">
+                                <button
+                                    type="button"
+                                    onClick={() => setRole('docente')}
+                                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-bold transition-all ${role === 'docente' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                                        }`}
+                                >
+                                    <UserCircle className="w-4 h-4" />
+                                    Docente
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setRole('estudiante')}
+                                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-bold transition-all ${role === 'estudiante' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                                        }`}
+                                >
+                                    <GraduationCap className="w-4 h-4" />
+                                    Estudiante
+                                </button>
+                            </div>
 
-                <form
-                    onSubmit={handleSubmit}
-                    className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 space-y-4"
-                >
-                    {error && (
-                        <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-sm text-red-400">
-                            {error}
-                        </div>
-                    )}
+                            {error && (
+                                <div className="bg-red-50 border border-red-100 p-4 rounded-2xl flex items-start gap-3 text-red-600 text-sm animate-in shake duration-300">
+                                    <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                                    <p className="font-bold">{error}</p>
+                                </div>
+                            )}
 
-                    <div className="space-y-1.5">
-                        <label className="text-sm font-medium text-slate-300">Número de Identidad</label>
-                        <input
-                            type="text"
-                            value={numeroIdentidad}
-                            onChange={e => setNumeroIdentidad(e.target.value)}
-                            placeholder="Ej: 0801199012345"
-                            maxLength={13}
-                            required
-                            className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-                        />
-                    </div>
+                            <div>
+                                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1 mb-2">
+                                    Número de Identidad (DNI)
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={dni}
+                                    maxLength={13}
+                                    onChange={(e) => setDni(e.target.value)}
+                                    className="block w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all font-medium"
+                                    placeholder="0801200000000"
+                                />
+                            </div>
 
-                    <div className="space-y-1.5">
-                        <label className="text-sm font-medium text-slate-300">Contraseña</label>
-                        <div className="relative">
-                            <input
-                                type={showPassword ? 'text' : 'password'}
-                                value={password}
-                                onChange={e => setPassword(e.target.value)}
-                                placeholder="Tu contraseña"
-                                required
-                                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 pr-12 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-                            />
+                            <div>
+                                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1 mb-2">
+                                    Contraseña
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        type={showPassword ? 'text' : 'password'}
+                                        required
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        className="block w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all font-medium"
+                                        placeholder="••••••••"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                    >
+                                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                    </button>
+                                </div>
+                            </div>
+
+                            <Button type="submit" loading={loading} className="w-full h-14 !rounded-2xl text-base shadow-lg shadow-indigo-100" icon={<LogIn className="w-5 h-5" />}>
+                                Ingresar al Portal
+                            </Button>
+
+                            <div className="pt-4 border-t border-slate-100 text-center">
+                                <button
+                                    type="button"
+                                    onClick={() => { setView('register'); setError(null); }}
+                                    className="text-sm font-bold text-indigo-600 hover:text-indigo-700 flex items-center justify-center gap-2 mx-auto"
+                                >
+                                    <UserPlus className="w-4 h-4" />
+                                    ¿No tienes cuenta? Regístrate como Docente
+                                </button>
+                            </div>
+                        </form>
+                    ) : (
+                        /* REGISTER VIEW */
+                        <form className="space-y-5" onSubmit={handleRegister}>
                             <button
                                 type="button"
-                                onClick={() => setShowPassword(v => !v)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                                onClick={() => setView('login')}
+                                className="flex items-center gap-2 text-slate-400 hover:text-slate-600 text-xs font-bold uppercase mb-2"
                             >
-                                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                <ArrowLeft className="w-4 h-4" /> Volver al login
                             </button>
-                        </div>
-                    </div>
 
-                    <Button
-                        type="submit"
-                        loading={loading}
-                        className={`w-full mt-2 ${role === 'estudiante' ? '!bg-emerald-600 hover:!bg-emerald-700 !shadow-emerald-900/20' : ''}`}
-                    >
-                        Ingresar
-                    </Button>
-                </form>
+                            {error && (
+                                <div className="bg-red-50 border border-red-100 p-4 rounded-2xl flex items-start gap-3 text-red-600 text-sm">
+                                    <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                                    <p className="font-bold">{error}</p>
+                                </div>
+                            )}
 
-                <div className="text-center mt-6">
-                    <Link href="/" className="text-slate-500 text-sm hover:text-slate-300 transition-colors">
-                        ← Volver al inicio
-                    </Link>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1 mb-1.5">Nombre</label>
+                                    <input type="text" required value={regNombre} onChange={e => setRegNombre(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm" placeholder="Ej: Gabriel" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1 mb-1.5">Apellido</label>
+                                    <input type="text" required value={regApellido} onChange={e => setRegApellido(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm" placeholder="Ej: Santos" />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1 mb-1.5">DNI (13 dígitos)</label>
+                                <input type="text" required value={regDni} maxLength={13} onChange={e => setRegDni(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm" placeholder="0801200000000" />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1 mb-1.5">Grado</label>
+                                    <select required value={regGrado} onChange={e => setRegGrado(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm">
+                                        <option value="">Seleccionar</option>
+                                        {GRADOS.map(g => <option key={g} value={g}>{g} Grado</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1 mb-1.5">Sección</label>
+                                    <select required value={regSeccion} onChange={e => setRegSeccion(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm">
+                                        <option value="">Seleccionar</option>
+                                        {SECCIONES.map(s => <option key={s} value={s}>{s}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1 mb-1.5">Crea tu contraseña</label>
+                                <input type="password" required value={regPassword} onChange={e => setRegPassword(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm" placeholder="Mínimo 6 caracteres" />
+                            </div>
+
+                            <Button type="submit" loading={loading} className="w-full h-14 !rounded-2xl text-base shadow-lg shadow-indigo-100" icon={<UserPlus className="w-5 h-5" />}>
+                                Crear Cuenta e Ingresar
+                            </Button>
+                        </form>
+                    )}
+
                 </div>
             </div>
-        </main>
+
+            <div className="mt-8 text-center sm:mx-auto sm:w-full sm:max-w-md">
+                <div className="flex items-center justify-center gap-4 text-slate-400">
+                    <div className="p-2 bg-white rounded-lg border border-slate-100">
+                        <School className="w-5 h-5" />
+                    </div>
+                    <span className="text-xs font-bold uppercase tracking-widest">Portal Educativo Nacional</span>
+                </div>
+            </div>
+
+            <style jsx global>{`
+                @keyframes shake {
+                    0%, 100% { transform: translateX(0); }
+                    10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+                    20%, 40%, 60%, 80% { transform: translateX(4px); }
+                }
+                .shake { animation: shake 0.6s cubic-bezier(.36,.07,.19,.97) both; }
+            `}</style>
+        </div>
     )
 }
 
 export default function LoginPage() {
     return (
-        <Suspense fallback={
-            <div className="min-h-screen bg-indigo-950 flex items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
-            </div>
-        }>
-            <LoginContent />
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><RefreshCw className="w-8 h-8 text-indigo-600 animate-spin" /></div>}>
+            <LoginForm />
         </Suspense>
     )
+}
+
+function RefreshCw(props: any) {
+    return <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M3 21v-5h5" /></svg>
 }
