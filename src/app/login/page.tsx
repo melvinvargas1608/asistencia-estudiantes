@@ -3,7 +3,7 @@
 import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { LogIn, UserCircle, ShieldCheck, AlertCircle, Eye, EyeOff, UserPlus, ArrowLeft, GraduationCap, School } from 'lucide-react'
+import { LogIn, UserCircle, ShieldCheck, AlertCircle, Eye, EyeOff, UserPlus, ArrowLeft, GraduationCap, School, Users } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import { GRADOS, SECCIONES } from '@/lib/types'
 
@@ -236,7 +236,7 @@ function LoginForm() {
                                         onChange={(e) => setPassword(e.target.value)}
                                         className="block w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all font-medium"
                                         maxLength={6}
-                                        placeholder="6 caracteres"
+                                        placeholder="••••••"
                                     />
                                     <button
                                         type="button"
@@ -253,22 +253,34 @@ function LoginForm() {
                             </Button>
 
                             <div className="pt-4 border-t border-slate-100 flex flex-col gap-3">
-                                <button
-                                    type="button"
-                                    onClick={() => { setView('activate'); setError(null); setRole('estudiante'); }}
-                                    className="text-sm font-bold text-emerald-600 hover:text-emerald-700 flex items-center justify-center gap-2 mx-auto"
-                                >
-                                    <GraduationCap className="w-4 h-4" />
-                                    Soy estudiante, es mi primer ingreso
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => { setView('register'); setError(null); }}
-                                    className="text-sm font-bold text-indigo-600 hover:text-indigo-700 flex items-center justify-center gap-2 mx-auto"
-                                >
-                                    <UserPlus className="w-4 h-4" />
-                                    ¿No tienes cuenta? Regístrate como Docente
-                                </button>
+                                {role === 'docente' ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => { setView('register'); setError(null); }}
+                                        className="text-sm font-bold text-indigo-600 hover:text-indigo-700 flex items-center justify-center gap-2 mx-auto"
+                                    >
+                                        <UserPlus className="w-4 h-4" />
+                                        ¿No tienes cuenta? Regístrate como Docente
+                                    </button>
+                                ) : (
+                                    <>
+                                        <button
+                                            type="button"
+                                            onClick={() => { setView('activate'); setError(null); setRole('estudiante'); }}
+                                            className="text-sm font-bold text-emerald-600 hover:text-emerald-700 flex items-center justify-center gap-2 mx-auto"
+                                        >
+                                            <GraduationCap className="w-4 h-4" />
+                                            Soy estudiante, es mi primer ingreso
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="text-sm font-bold text-slate-500 hover:text-slate-600 flex items-center justify-center gap-2 mx-auto"
+                                        >
+                                            <Users className="w-4 h-4" />
+                                            Acceder como Padre de Familia
+                                        </button>
+                                    </>
+                                )}
                             </div>
                         </form>
                     ) : view === 'activate' ? (
@@ -321,7 +333,7 @@ function LoginForm() {
                                         onChange={(e) => setPassword(e.target.value)}
                                         className="block w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all font-medium"
                                         maxLength={6}
-                                        placeholder="6 caracteres"
+                                        placeholder="••••••"
                                     />
                                     <button
                                         type="button"
@@ -390,7 +402,7 @@ function LoginForm() {
 
                             <div>
                                 <label className="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1 mb-1.5">Crea tu contraseña</label>
-                                <input type="password" required value={regPassword} maxLength={6} onChange={e => setRegPassword(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm" placeholder="Define 6 caracteres" />
+                                <input type="password" required value={regPassword} maxLength={6} onChange={e => setRegPassword(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm" placeholder="••••••" />
                             </div>
 
                             <Button type="submit" loading={loading} className="w-full h-14 !rounded-2xl text-base shadow-lg shadow-indigo-100" icon={<UserPlus className="w-5 h-5" />}>
