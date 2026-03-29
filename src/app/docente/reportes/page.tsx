@@ -104,6 +104,40 @@ export default function ReportesPage() {
         setFetched(true)
     }
 
+    async function toggleAttendance(record: AttendanceReport) {
+        const supabase = createClient()
+        const isPresent = record.presente
+
+        if (isPresent) {
+            // Remove
+            const { error } = await supabase
+                .from('asistencia')
+                .delete()
+                .eq('estudiante_id', record.estudiante_id)
+                .eq('fecha', record.fecha)
+
+            if (!error) {
+                setRecords(prev => prev.map(r =>
+                    (r.estudiante_id === record.estudiante_id && r.fecha === record.fecha)
+                        ? { ...r, presente: false } : r
+                ))
+            }
+        } else {
+            // Add
+            const { error } = await supabase
+                .from('asistencia')
+                .insert({ estudiante_id: record.estudiante_id, fecha: record.fecha, presente: true })
+
+            if (!error) {
+                setRecords(prev => prev.map(r =>
+                    (r.estudiante_id === record.estudiante_id && r.fecha === record.fecha)
+                        ? { ...r, presente: true } : r
+                ))
+                if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(100)
+            }
+        }
+    }
+
     const presentCount = records.filter(r => r.presente).length
     const absentCount = records.filter(r => !r.presente).length
 
@@ -222,9 +256,15 @@ export default function ReportesPage() {
                                             <td className="px-4 py-3 text-slate-600">{r.seccion}</td>
                                             <td className="px-4 py-3 text-slate-600">{r.jornada}</td>
                                             <td className="px-4 py-3">
-                                                <Badge variant={r.presente ? 'green' : 'red'}>
-                                                    {r.presente ? 'Presente' : 'Ausente'}
-                                                </Badge>
+                                                <button
+                                                    onClick={() => toggleAttendance(r)}
+                                                    className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all active:scale-95 border-2 ${r.presente
+                                                            ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-100'
+                                                            : 'bg-white border-red-100 text-red-500 hover:border-red-500'
+                                                        }`}
+                                                >
+                                                    {r.presente ? 'PRESENTE' : 'AUSENTE'}
+                                                </button>
                                             </td>
                                             <td className="px-4 py-3 text-slate-500">{r.docente_nombre}</td>
                                         </tr>
