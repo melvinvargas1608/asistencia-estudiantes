@@ -74,6 +74,11 @@ function LoginForm() {
             return
         }
 
+        if (regPassword.length !== 6) {
+            setError('La contraseña debe tener exactamente 6 caracteres.')
+            return
+        }
+
         setLoading(true)
         try {
             const res = await fetch('/api/register-teacher', {
@@ -116,8 +121,8 @@ function LoginForm() {
             return
         }
 
-        if (password.length < 6) {
-            setError('La contraseña debe tener al menos 6 caracteres.')
+        if (password.length !== 6) {
+            setError('La contraseña debe tener exactamente 6 caracteres.')
             return
         }
 
@@ -230,7 +235,8 @@ function LoginForm() {
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
                                         className="block w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all font-medium"
-                                        placeholder="••••••••"
+                                        maxLength={6}
+                                        placeholder="6 caracteres"
                                     />
                                     <button
                                         type="button"
@@ -314,7 +320,8 @@ function LoginForm() {
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
                                         className="block w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all font-medium"
-                                        placeholder="Mínimo 6 caracteres"
+                                        maxLength={6}
+                                        placeholder="6 caracteres"
                                     />
                                     <button
                                         type="button"
@@ -383,7 +390,7 @@ function LoginForm() {
 
                             <div>
                                 <label className="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1 mb-1.5">Crea tu contraseña</label>
-                                <input type="password" required value={regPassword} onChange={e => setRegPassword(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm" placeholder="Mínimo 6 caracteres" />
+                                <input type="password" required value={regPassword} maxLength={6} onChange={e => setRegPassword(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm" placeholder="Define 6 caracteres" />
                             </div>
 
                             <Button type="submit" loading={loading} className="w-full h-14 !rounded-2xl text-base shadow-lg shadow-indigo-100" icon={<UserPlus className="w-5 h-5" />}>
