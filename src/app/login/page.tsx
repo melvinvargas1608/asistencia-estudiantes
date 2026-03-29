@@ -57,8 +57,7 @@ function LoginForm() {
             }
 
             const next = searchParams.get('next')
-            router.push(next || (role === 'docente' ? '/docente' : '/estudiante'))
-            router.refresh()
+            window.location.href = next || (role === 'docente' ? '/docente/dashboard' : '/estudiante/dashboard')
         } catch (err: any) {
             setError(err.message || 'Error al iniciar sesión')
             setLoading(false)
@@ -100,8 +99,7 @@ function LoginForm() {
                 password: regPassword
             })
 
-            router.push('/docente')
-            router.refresh()
+            window.location.href = '/docente/dashboard'
         } catch (err: any) {
             setError(err.message)
             setLoading(false)
