@@ -24,6 +24,8 @@ export default function AsistenciaPage() {
     const [cameras, setCameras] = useState<any[]>([])
     const [selectedCamera, setSelectedCamera] = useState<string>('')
     const [lastScan, setLastScan] = useState<string | null>(null)
+    const [lastResult, setLastResult] = useState<ScanResult | null>(null)
+    const [showResultOverlay, setShowResultOverlay] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const fileRef = useRef<HTMLInputElement>(null)
     const today = format(new Date(), "EEEE, d 'de' MMMM yyyy", { locale: es })
@@ -62,15 +64,17 @@ export default function AsistenciaPage() {
                 }
             }
 
+            // Cleanup previous instance if exists
+            if (html5QrRef.current) {
+                try { await html5QrRef.current.stop() } catch (e) { }
+            }
+
             const scanner = new Html5Qrcode('qr-reader')
             html5QrRef.current = scanner
 
             const config = {
-                fps: 30,
-                qrbox: (viewWidth: number, viewHeight: number) => {
-                    const min = Math.min(viewWidth, viewHeight)
-                    return { width: Math.floor(min * 0.8), height: Math.floor(min * 0.8) }
-                },
+                fps: 20,
+                qrbox: 280,
                 experimentalFeatures: {
                     useBarCodeDetectorIfSupported: true
                 }
@@ -133,7 +137,7 @@ export default function AsistenciaPage() {
     async function processQR(rawText: string) {
         const studentId = parseQRPayload(rawText)
         if (!studentId) {
-            addResult({ student: {} as Estudiante, status: 'error', message: 'QR inválido: no corresponde a un estudiante.' })
+            updateResult({ student: {} as Estudiante, status: 'error', message: 'QR inválido: no corresponde a un estudiante.' })
             return
         }
 
@@ -145,7 +149,7 @@ export default function AsistenciaPage() {
             .single()
 
         if (!student) {
-            addResult({ student: {} as Estudiante, status: 'error', message: `No se encontró estudiante en la base de datos.` })
+            updateResult({ student: {} as Estudiante, status: 'error', message: `No se encontró estudiante en la base de datos.` })
             return
         }
 
@@ -157,7 +161,7 @@ export default function AsistenciaPage() {
             .single()
 
         if (existing) {
-            addResult({ student, status: 'already', message: 'Asistencia ya registrada hoy.' })
+            updateResult({ student, status: 'already', message: 'Asistencia ya registrada hoy.' })
             return
         }
 
@@ -166,14 +170,27 @@ export default function AsistenciaPage() {
             .insert({ estudiante_id: student.id, fecha: todayStr, presente: true })
 
         if (insertError) {
-            addResult({ student, status: 'error', message: insertError.message })
+            updateResult({ student, status: 'error', message: insertError.message })
         } else {
-            addResult({ student, status: 'success', message: '¡Asistencia registrada exitosamente!' })
+            updateResult({ student, status: 'success', message: '¡Asistencia registrada exitosamente!' })
         }
     }
 
-    function addResult(r: ScanResult) {
+    function updateResult(r: ScanResult) {
         setResults(prev => [r, ...prev.slice(0, 9)])
+        setLastResult(r)
+        setShowResultOverlay(true)
+
+        // Vibrate if supported
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+            navigator.vibrate(r.status === 'success' ? 200 : [100, 50, 100])
+        }
+
+        // Auto-hide result and scan again after 2.5 seconds
+        setTimeout(() => {
+            setShowResultOverlay(false)
+            setLastScan(null)
+        }, 2500)
     }
 
     return (
@@ -233,10 +250,34 @@ export default function AsistenciaPage() {
 
                         {scanning && (
                             <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center">
+                                <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[1px] bg-red-500/50 shadow-[0_0_10px_rgba(239,68,68,0.5)] animate-scan visible md:hidden" />
                                 <div className="absolute inset-0 bg-indigo-500/5" />
-                                <div className="w-80 h-80 border-4 border-indigo-400/50 rounded-3xl opacity-60 shadow-[0_0_50px_rgba(79,70,229,0.3)] relative">
-                                    <div className="absolute top-1/2 left-0 w-full h-1 bg-indigo-500 shadow-[0_0_20px_rgba(79,70,229,0.8)] animate-scan" />
+                                <div className="w-64 h-64 border-2 border-dashed border-white/30 rounded-3xl relative">
+                                    <div className="absolute top-1/2 left-0 w-full h-[2px] bg-indigo-500 shadow-[0_0_20px_rgba(79,70,229,0.8)] animate-scan" />
                                 </div>
+                            </div>
+                        )}
+
+                        {/* Scanner Success/Error Overlay */}
+                        {showResultOverlay && lastResult && (
+                            <div className={`absolute inset-0 z-20 flex flex-col items-center justify-center p-6 text-center backdrop-blur-md transition-all duration-300 animate-in fade-in scale-in ${lastResult.status === 'success' ? 'bg-emerald-600/90' : lastResult.status === 'already' ? 'bg-amber-500/90' : 'bg-red-600/90'
+                                }`}>
+                                <div className="bg-white rounded-full p-4 mb-4 shadow-2xl scale-110">
+                                    {lastResult.status === 'success' && <CheckCircle2 className="w-12 h-12 text-emerald-600" />}
+                                    {lastResult.status === 'already' && <RefreshCw className="w-12 h-12 text-amber-500" />}
+                                    {lastResult.status === 'error' && <XCircle className="w-12 h-12 text-red-600" />}
+                                </div>
+                                <h3 className="text-2xl font-black text-white mb-2 leading-tight uppercase tracking-wider">
+                                    {lastResult.status === 'success' ? '¡Éxito!' : lastResult.status === 'already' ? 'Ya registrado' : 'Error'}
+                                </h3>
+                                {lastResult.student?.nombre && (
+                                    <p className="text-white font-bold text-lg mb-1 drop-shadow-sm">
+                                        {lastResult.student.nombre} {lastResult.student.apellido}
+                                    </p>
+                                )}
+                                <p className="text-white/90 text-sm font-medium italic">
+                                    {lastResult.message}
+                                </p>
                             </div>
                         )}
                     </div>
