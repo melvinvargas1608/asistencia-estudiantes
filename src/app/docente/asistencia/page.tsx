@@ -66,13 +66,19 @@ export default function AsistenciaPage() {
             html5QrRef.current = scanner
 
             const config = {
-                fps: 20,
-                qrbox: 350
+                fps: 30,
+                qrbox: (viewWidth: number, viewHeight: number) => {
+                    const min = Math.min(viewWidth, viewHeight)
+                    return { width: Math.floor(min * 0.8), height: Math.floor(min * 0.8) }
+                },
+                experimentalFeatures: {
+                    useBarCodeDetectorIfSupported: true
+                }
             }
 
             // Start library scanner
             await scanner.start(
-                selectedCamera || { facingMode: 'user' },
+                selectedCamera || { facingMode: { ideal: 'environment' } },
                 config,
                 async (decodedText) => {
                     if (decodedText === lastScan) return
