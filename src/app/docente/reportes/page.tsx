@@ -70,9 +70,10 @@ export default function ReportesPage() {
         const report: AttendanceReport[] = []
         const datesWithRecords = Array.from(new Set((attendance || []).map(a => a.fecha)))
 
-        // If range is same day, always show that day even if no records
-        if (datesWithRecords.length === 0 && fechaInicio === fechaFin) {
-            datesWithRecords.push(fechaInicio)
+        // If no records found in the whole range, at least show students for the last day
+        // This ensures new students appear in the list as "Ausente" so they can be toggled.
+        if (datesWithRecords.length === 0) {
+            datesWithRecords.push(fechaFin)
         }
 
         datesWithRecords.forEach(date => {
@@ -259,8 +260,8 @@ export default function ReportesPage() {
                                                 <button
                                                     onClick={() => toggleAttendance(r)}
                                                     className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all active:scale-95 border-2 ${r.presente
-                                                            ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-100'
-                                                            : 'bg-white border-red-100 text-red-500 hover:border-red-500'
+                                                        ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-100'
+                                                        : 'bg-white border-red-100 text-red-500 hover:border-red-500'
                                                         }`}
                                                 >
                                                     {r.presente ? 'PRESENTE' : 'AUSENTE'}
