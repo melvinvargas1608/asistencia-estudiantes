@@ -65,20 +65,38 @@ export default function ReportesPage() {
 
         const docenteName = `${docente.nombre} ${docente.apellido}`
 
-        const report: AttendanceReport[] = (attendance || []).map(a => {
-            const s = students.find(st => st.id === a.estudiante_id)!
-            return {
-                fecha: a.fecha,
-                estudiante_id: a.estudiante_id,
-                nombre: s.nombre,
-                apellido: s.apellido,
-                numero_identidad: s.numero_identidad,
-                grado: s.grado,
-                seccion: s.seccion,
-                jornada: s.jornada,
-                presente: a.presente,
-                docente_nombre: docenteName,
-            }
+        // Group by date to ensure we show all students for each date that has records
+        // Or if start === end, show all students for that specific day
+        const report: AttendanceReport[] = []
+        const datesWithRecords = Array.from(new Set((attendance || []).map(a => a.fecha)))
+
+        // If range is same day, always show that day even if no records
+        if (datesWithRecords.length === 0 && fechaInicio === fechaFin) {
+            datesWithRecords.push(fechaInicio)
+        }
+
+        datesWithRecords.forEach(date => {
+            students.forEach(s => {
+                const record = attendance?.find(a => a.estudiante_id === s.id && a.fecha === date)
+                report.push({
+                    fecha: date,
+                    estudiante_id: s.id,
+                    nombre: s.nombre,
+                    apellido: s.apellido,
+                    numero_identidad: s.numero_identidad,
+                    grado: s.grado,
+                    seccion: s.seccion,
+                    jornada: s.jornada,
+                    presente: record ? record.presente : false,
+                    docente_nombre: docenteName,
+                })
+            })
+        })
+
+        // Sort by date desc then by name
+        report.sort((a, b) => {
+            if (a.fecha !== b.fecha) return b.fecha.localeCompare(a.fecha)
+            return a.apellido.localeCompare(b.apellido)
         })
 
         setRecords(report)
