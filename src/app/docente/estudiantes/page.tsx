@@ -24,6 +24,7 @@ const studentSchema = z.object({
     numero_identidad: z.string()
         .regex(/^\d{13}$/, 'Debe ser exactamente 13 dígitos numéricos')
         .transform(val => val.trim()),
+    sexo: z.string().min(1, 'Selecciona el sexo'),
     grado: z.string().min(1, 'Selecciona un grado'),
     seccion: z.string().min(1, 'Selecciona una sección'),
     jornada: z.string().min(1, 'Selecciona una jornada'),
@@ -131,6 +132,7 @@ export default function EstudiantesPage() {
             nombre: student.nombre,
             apellido: student.apellido,
             numero_identidad: student.numero_identidad,
+            sexo: student.sexo,
             grado: student.grado,
             seccion: student.seccion,
             jornada: student.jornada,
@@ -247,7 +249,7 @@ export default function EstudiantesPage() {
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="bg-slate-50 border-b border-slate-100">
-                                {['#', 'Nombre', 'Apellido', 'DNI', 'Grado', 'Sección', 'Jornada', 'Acciones'].map(h => (
+                                {['#', 'Nombre', 'Apellido', 'DNI', 'Sexo', 'Grado', 'Sección', 'Jornada', 'Acciones'].map(h => (
                                     <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                                         {h}
                                     </th>
@@ -268,6 +270,7 @@ export default function EstudiantesPage() {
                                         <td className="px-4 py-3 font-medium text-slate-800">{s.nombre}</td>
                                         <td className="px-4 py-3 text-slate-600">{s.apellido}</td>
                                         <td className="px-4 py-3 font-mono text-slate-500 text-xs">{s.numero_identidad}</td>
+                                        <td className="px-4 py-3 text-slate-600">{s.sexo === 'M' ? 'Masculino' : s.sexo === 'F' ? 'Femenino' : s.sexo}</td>
                                         <td className="px-4 py-3">
                                             <Badge variant={gradoColor[s.grado] as any || 'gray'}>{s.grado}</Badge>
                                         </td>
@@ -322,14 +325,23 @@ export default function EstudiantesPage() {
                             <input {...form.register('apellido')} placeholder="Pérez" className={inputCls} />
                         </Field>
                     </div>
-                    <Field label="Número de Identidad (13 dígitos)" error={form.formState.errors.numero_identidad?.message}>
-                        <input
-                            {...form.register('numero_identidad')}
-                            placeholder="Ej: 0801199012345"
-                            maxLength={13}
-                            className={inputCls}
-                        />
-                    </Field>
+                    <div className="grid grid-cols-2 gap-4">
+                        <Field label="Número de Identidad (13 dígitos)" error={form.formState.errors.numero_identidad?.message}>
+                            <input
+                                {...form.register('numero_identidad')}
+                                placeholder="Ej: 0801199012345"
+                                maxLength={13}
+                                className={inputCls}
+                            />
+                        </Field>
+                        <Field label="Sexo" error={form.formState.errors.sexo?.message}>
+                            <select {...form.register('sexo')} className={selectCls}>
+                                <option value="">Seleccionar</option>
+                                <option value="M">Masculino</option>
+                                <option value="F">Femenino</option>
+                            </select>
+                        </Field>
+                    </div>
                     <div className="grid grid-cols-3 gap-4">
                         <Field label="Grado" error={form.formState.errors.grado?.message}>
                             <select {...form.register('grado')} className={selectCls}>
@@ -380,13 +392,22 @@ export default function EstudiantesPage() {
                             <input {...editForm.register('apellido')} className={inputCls} />
                         </Field>
                     </div>
-                    <Field label="Número de Identidad (13 dígitos)" error={editForm.formState.errors.numero_identidad?.message}>
-                        <input
-                            {...editForm.register('numero_identidad')}
-                            maxLength={13}
-                            className={inputCls}
-                        />
-                    </Field>
+                    <div className="grid grid-cols-2 gap-4">
+                        <Field label="Número de Identidad (13 dígitos)" error={editForm.formState.errors.numero_identidad?.message}>
+                            <input
+                                {...editForm.register('numero_identidad')}
+                                maxLength={13}
+                                className={inputCls}
+                            />
+                        </Field>
+                        <Field label="Sexo" error={editForm.formState.errors.sexo?.message}>
+                            <select {...editForm.register('sexo')} className={selectCls}>
+                                <option value="">Seleccionar</option>
+                                <option value="M">Masculino</option>
+                                <option value="F">Femenino</option>
+                            </select>
+                        </Field>
+                    </div>
                     <div className="grid grid-cols-3 gap-4">
                         <Field label="Grado" error={editForm.formState.errors.grado?.message}>
                             <select {...editForm.register('grado')} className={selectCls}>
@@ -480,7 +501,7 @@ export default function EstudiantesPage() {
             <Modal isOpen={showImport} onClose={() => { setShowImport(false); setImportFile(null); setImportError(null) }} title="Importar Estudiantes" size="md">
                 <div className="space-y-4">
                     <p className="text-sm text-slate-600">
-                        Sube un archivo CSV o Excel con las columnas: <strong>nombre, apellido, numero_identidad, grado, seccion, jornada</strong>
+                        Sube un archivo CSV o Excel con las columnas: <strong>nombre, apellido, numero_identidad, sexo, grado, seccion, jornada</strong>
                     </p>
 
                     {importError && (

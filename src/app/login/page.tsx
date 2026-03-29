@@ -25,6 +25,7 @@ function LoginForm() {
     const [regNombre, setRegNombre] = useState('')
     const [regApellido, setRegApellido] = useState('')
     const [regDni, setRegDni] = useState('')
+    const [regSexo, setRegSexo] = useState('')
     const [regGrado, setRegGrado] = useState('')
     const [regSeccion, setRegSeccion] = useState('')
     const [regPassword, setRegPassword] = useState('')
@@ -89,6 +90,7 @@ function LoginForm() {
                     nombre: regNombre,
                     apellido: regApellido,
                     numero_identidad: sanitizedDni,
+                    sexo: regSexo,
                     grado: regGrado,
                     seccion: regSeccion,
                     password: regPassword
@@ -379,9 +381,19 @@ function LoginForm() {
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1 mb-1.5">DNI (13 dígitos)</label>
-                                <input type="text" required value={regDni} maxLength={13} onChange={e => setRegDni(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm" placeholder="0801200000000" />
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1 mb-1.5">DNI (13 dígitos)</label>
+                                    <input type="text" required value={regDni} maxLength={13} onChange={e => setRegDni(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm" placeholder="0801200000000" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1 mb-1.5">Sexo</label>
+                                    <select required value={regSexo} onChange={e => setRegSexo(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm">
+                                        <option value="">Seleccionar</option>
+                                        <option value="M">Masculino</option>
+                                        <option value="F">Femenino</option>
+                                    </select>
+                                </div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">

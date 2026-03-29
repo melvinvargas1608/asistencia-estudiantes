@@ -4,6 +4,7 @@ export interface ImportedStudent {
     nombre: string
     apellido: string
     numero_identidad: string
+    sexo: string
     grado: string
     seccion: string
     jornada: string
@@ -33,6 +34,7 @@ export async function parseStudentFile(file: File): Promise<ImportedStudent[]> {
             nombre: get(['nombre', 'first_name', 'firstname']),
             apellido: get(['apellido', 'apellidos', 'last_name', 'lastname']),
             numero_identidad: get(['numero_identidad', 'dni', 'identidad', 'cedula', 'id']),
+            sexo: get(['sexo', 'genero', 'gender']),
             grado: get(['grado', 'grade']),
             seccion: get(['seccion', 'sección', 'section']),
             jornada: get(['jornada', 'turno', 'shift']),
@@ -41,6 +43,7 @@ export async function parseStudentFile(file: File): Promise<ImportedStudent[]> {
         if (!student.nombre) throw new Error(`Fila ${index + 2}: campo "nombre" es requerido`)
         if (!student.apellido) throw new Error(`Fila ${index + 2}: campo "apellido" es requerido`)
         if (!student.numero_identidad) throw new Error(`Fila ${index + 2}: campo "numero_identidad" es requerido`)
+        if (!student.sexo) throw new Error(`Fila ${index + 2}: campo "sexo" es requerido`)
 
         return student
     })

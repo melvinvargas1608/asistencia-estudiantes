@@ -5,6 +5,7 @@ export interface Docente {
     nombre: string
     apellido: string
     numero_identidad: string
+    sexo: string
     grado: string
     seccion: string
     auth_user_id: string
@@ -16,6 +17,7 @@ export interface Estudiante {
     nombre: string
     apellido: string
     numero_identidad: string
+    sexo: string
     grado: string
     seccion: string
     jornada: string

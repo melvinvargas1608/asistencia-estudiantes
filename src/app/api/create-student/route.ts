@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
         )
 
         const body = await req.json()
-        const { nombre, apellido, numero_identidad, grado, seccion, jornada, docente_id, email, password } = body
+        const { nombre, apellido, numero_identidad, sexo, grado, seccion, jornada, docente_id, email, password } = body
 
         // Create auth user for student
         const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
@@ -42,6 +42,7 @@ export async function POST(req: NextRequest) {
                 nombre,
                 apellido,
                 numero_identidad,
+                sexo,
                 grado,
                 seccion,
                 jornada,

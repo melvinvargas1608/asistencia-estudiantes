@@ -10,9 +10,9 @@ export async function POST(req: NextRequest) {
         )
 
         const body = await req.json()
-        const { nombre, apellido, numero_identidad, grado, seccion, password } = body
+        const { nombre, apellido, numero_identidad, sexo, grado, seccion, password } = body
 
-        if (!nombre || !apellido || !numero_identidad || !grado || !seccion || !password) {
+        if (!nombre || !apellido || !numero_identidad || !sexo || !grado || !seccion || !password) {
             return NextResponse.json({ error: 'Todos los campos son obligatorios' }, { status: 400 })
         }
 
@@ -47,6 +47,7 @@ export async function POST(req: NextRequest) {
                 nombre,
                 apellido,
                 numero_identidad: sanitizedDni,
+                sexo,
                 grado,
                 seccion,
                 auth_user_id: authUserId
