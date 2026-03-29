@@ -165,12 +165,12 @@ function LoginForm() {
                     </div>
                 </div>
                 <h2 className="mt-6 text-center text-3xl font-black text-slate-900 tracking-tight">
-                    {view === 'login' ? 'Bienvenido de nuevo' : view === 'register' ? 'Registro de Docente' : 'Activa tu Cuenta'}
+                    {view === 'login' ? 'Bienvenido de nuevo' : view === 'register' ? 'Registro de Docente' : 'Acceso para Padres'}
                 </h2>
                 <p className="mt-2 text-center text-sm text-slate-500 font-medium">
                     {view === 'login'
                         ? 'Sistema de Control de Asistencia Escolar'
-                        : view === 'register' ? 'Crea tu perfil para empezar a gestionar la asistencia' : 'Define tu contraseña para ingresar como estudiante'}
+                        : view === 'register' ? 'Crea tu perfil para empezar a gestionar la asistencia' : 'Crea la contraseña para ver la asistencia de tu hijo(a)'}
                 </p>
             </div>
 
@@ -267,14 +267,7 @@ function LoginForm() {
                                         <button
                                             type="button"
                                             onClick={() => { setView('activate'); setError(null); setRole('estudiante'); }}
-                                            className="text-sm font-bold text-emerald-600 hover:text-emerald-700 flex items-center justify-center gap-2 mx-auto"
-                                        >
-                                            <GraduationCap className="w-4 h-4" />
-                                            Soy estudiante, es mi primer ingreso
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="text-sm font-bold text-slate-500 hover:text-slate-600 flex items-center justify-center gap-2 mx-auto"
+                                            className="text-sm font-bold text-slate-600 hover:text-slate-800 flex items-center justify-center gap-2 mx-auto transition-colors"
                                         >
                                             <Users className="w-4 h-4" />
                                             Acceder como Padre de Familia
@@ -303,7 +296,7 @@ function LoginForm() {
 
                             <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl flex items-start gap-3 text-emerald-700 text-sm">
                                 <ShieldCheck className="w-5 h-5 shrink-0 mt-0.5 text-emerald-600" />
-                                <p>Si tu docente ya te registró, ingresa tu DNI para crear tu contraseña personalizada.</p>
+                                <p>Si el docente ya registró a su hijo(a), ingresa el DNI del estudiante para crear tu contraseña.</p>
                             </div>
 
                             <div>
@@ -346,7 +339,7 @@ function LoginForm() {
                             </div>
 
                             <Button type="submit" loading={loading} className="w-full h-14 !rounded-2xl text-base shadow-lg shadow-emerald-100" icon={<ShieldCheck className="w-5 h-5" />}>
-                                Activar mi Cuenta
+                                Confirmar y Acceder
                             </Button>
                         </form>
                     ) : (
