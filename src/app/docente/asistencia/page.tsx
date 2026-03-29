@@ -50,10 +50,19 @@ export default function AsistenciaPage() {
     async function startScanner() {
         setError(null)
         setLastScan(null)
+        setShowResultOverlay(false)
         if (typeof window === 'undefined') return
 
         try {
             const { Html5Qrcode } = await import('html5-qrcode')
+
+            // Cleanup previous instance if exists (Very important for Hardware stability)
+            if (html5QrRef.current) {
+                try {
+                    await html5QrRef.current.stop()
+                } catch (e) { }
+                html5QrRef.current = null
+            }
 
             // Get cameras if needed
             if (cameras.length === 0) {
@@ -64,30 +73,23 @@ export default function AsistenciaPage() {
                 }
             }
 
-            // Cleanup previous instance if exists
-            if (html5QrRef.current) {
-                try { await html5QrRef.current.stop() } catch (e) { }
-            }
-
             const scanner = new Html5Qrcode('qr-reader')
             html5QrRef.current = scanner
 
             const config = {
-                fps: 20,
-                qrbox: 280,
-                experimentalFeatures: {
-                    useBarCodeDetectorIfSupported: true
-                }
+                fps: 15,
+                qrbox: 260,
+                // Removed aspectRatio for maximum compatibility
             }
 
-            // Start library scanner
+            const deviceId = selectedCamera || { facingMode: { ideal: 'environment' } }
+
             await scanner.start(
-                selectedCamera || { facingMode: { ideal: 'environment' } },
+                deviceId,
                 config,
                 async (decodedText) => {
-                    if (decodedText === lastScan) return
+                    if (decodedText === lastScan || showResultOverlay) return
                     setLastScan(decodedText)
-                    setTimeout(() => setLastScan(null), 3000)
                     await processQR(decodedText)
                 },
                 undefined
@@ -95,7 +97,7 @@ export default function AsistenciaPage() {
             setScanning(true)
         } catch (err: any) {
             console.error('Scanner Error:', err)
-            setError(`No se pudo cargar la imagen: ${err.message || 'Error de hardware'}. Intenta con "Subir Imagen".`)
+            setError(`Error de hardware: ${err.message || 'No se pudo iniciar la cámara'}. Intenta "Subir Imagen".`)
             setScanning(false)
         }
     }
@@ -108,13 +110,14 @@ export default function AsistenciaPage() {
             html5QrRef.current = null
         }
         setScanning(false)
+        setShowResultOverlay(false)
     }
 
     async function switchCamera(deviceId: string) {
         setSelectedCamera(deviceId)
         if (scanning) {
             await stopScanner()
-            setTimeout(() => startScanner(), 300)
+            setTimeout(() => startScanner(), 500)
         }
     }
 
@@ -186,7 +189,7 @@ export default function AsistenciaPage() {
             navigator.vibrate(r.status === 'success' ? 200 : [100, 50, 100])
         }
 
-        // Auto-hide result and scan again after 2.5 seconds
+        // Auto-hide result and allow scanning again after 2.5 seconds
         setTimeout(() => {
             setShowResultOverlay(false)
             setLastScan(null)
@@ -195,16 +198,16 @@ export default function AsistenciaPage() {
 
     return (
         <div className="max-w-3xl mx-auto space-y-6">
-            <div className="flex justify-between items-end">
+            <div className="flex justify-between items-end px-4 sm:px-0">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-800">Tomar Asistencia</h1>
                     <p className="text-slate-500 text-sm mt-0.5 capitalize">{today}</p>
                 </div>
             </div>
 
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">
-                <div className="p-6 border-b border-slate-100 bg-slate-50/50">
-                    <div className="flex items-center justify-between">
+            <div className="bg-white sm:rounded-3xl border-y sm:border border-slate-200 shadow-xl overflow-hidden">
+                <div className="p-6 border-b border-slate-100 bg-slate-50/50 text-center sm:text-left">
+                    <div className="flex items-center justify-between flex-wrap gap-4">
                         <div className="flex items-center gap-3">
                             <div className="p-2 bg-indigo-600 rounded-lg">
                                 <QrCode className="w-5 h-5 text-white" />
@@ -220,7 +223,7 @@ export default function AsistenciaPage() {
                     </div>
                 </div>
 
-                <div className="p-8">
+                <div className="p-4 sm:p-8">
                     {error && (
                         <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 text-red-600 text-sm animate-in fade-in slide-in-from-top-2">
                             <XCircle className="w-5 h-5 shrink-0" />
@@ -228,14 +231,14 @@ export default function AsistenciaPage() {
                         </div>
                     )}
 
-                    {cameras.length > 1 && (
+                    {cameras.length > 0 && (
                         <div className="mb-6 flex items-center gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-100">
                             <Camera className="w-4 h-4 text-slate-400" />
                             <span className="text-xs font-semibold text-slate-500">Origen:</span>
                             <select
                                 value={selectedCamera}
                                 onChange={(e) => switchCamera(e.target.value)}
-                                className="flex-1 text-xs bg-transparent border-none focus:ring-0 font-medium text-slate-700 cursor-pointer"
+                                className="flex-1 text-xs bg-transparent border-none focus:ring-0 font-medium text-slate-700 cursor-pointer overflow-hidden whitespace-nowrap text-ellipsis"
                             >
                                 {cameras.map(c => (
                                     <option key={c.id} value={c.id}>{c.label || `Cámara ${c.id.slice(0, 8)}`}</option>
@@ -244,7 +247,7 @@ export default function AsistenciaPage() {
                         </div>
                     )}
 
-                    <div className={`relative w-full aspect-video rounded-3xl overflow-hidden bg-black shadow-2xl transition-all duration-500 ${scanning ? 'scale-100 opacity-100' : 'scale-95 opacity-50'}`}>
+                    <div className={`relative w-full aspect-square sm:aspect-video rounded-3xl overflow-hidden bg-black shadow-2xl transition-all duration-500 ${scanning ? 'scale-100 opacity-100' : 'scale-95 opacity-50'}`}>
                         <div id="qr-reader" className="w-full h-full [&_video]:object-cover" />
                         <div id="qr-reader-temp" className="hidden" />
 
@@ -298,7 +301,7 @@ export default function AsistenciaPage() {
                                 <Button variant="danger" className="h-12 px-10 !rounded-2xl shadow-lg shadow-red-200" icon={<XCircle className="w-5 h-5" />} onClick={stopScanner}>
                                     Detener Escáner
                                 </Button>
-                                <p className="text-xs text-slate-400 italic">Si ves la pantalla negra, intenta cambiar de cámara o usar "Subir Imagen"</p>
+                                <p className="text-xs text-slate-400 italic text-center px-4">Si ves la pantalla negra, intenta cambiar de cámara o usar "Subir Imagen"</p>
                             </div>
                         )}
                     </div>
@@ -306,7 +309,7 @@ export default function AsistenciaPage() {
             </div>
 
             {results.length > 0 && (
-                <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden animate-in slide-in-from-bottom-4 duration-500">
+                <div className="bg-white sm:rounded-3xl border border-slate-200 shadow-xl overflow-hidden animate-in slide-in-from-bottom-4 duration-500 mx-4 sm:mx-0">
                     <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
                         <div className="flex items-center gap-2">
                             <h2 className="font-bold text-slate-800">Registros Recientes</h2>
@@ -344,13 +347,20 @@ export default function AsistenciaPage() {
 
             <style jsx global>{`
                 @keyframes scan {
-                    0% { top: 0%; opacity: 0; }
-                    20% { opacity: 0.5; }
-                    80% { opacity: 0.5; }
-                    100% { top: 100%; opacity: 0; }
+                    0% { top: 10%; opacity: 0; }
+                    20% { opacity: 0.8; }
+                    80% { opacity: 0.8; }
+                    100% { top: 90%; opacity: 0; }
                 }
                 .animate-scan {
                     animation: scan 3s linear infinite;
+                }
+                .scale-in {
+                    animation: scaleIn 0.3s ease-out;
+                }
+                @keyframes scaleIn {
+                    from { transform: scale(0.95); opacity: 0; }
+                    to { transform: scale(1); opacity: 1; }
                 }
             `}</style>
         </div>
