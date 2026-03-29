@@ -22,7 +22,10 @@ export async function POST(req: NextRequest) {
             email_confirm: true,
         })
 
-        if (authError && !authError.message.includes('already registered')) {
+        if (authError) {
+            if (authError.message.includes('already been registered')) {
+                return NextResponse.json({ error: 'Ya existe un usuario registrado con ese número de DNI.' }, { status: 400 })
+            }
             return NextResponse.json({ error: authError.message }, { status: 400 })
         }
 
