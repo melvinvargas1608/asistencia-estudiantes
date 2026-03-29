@@ -10,7 +10,7 @@ import { GRADOS, SECCIONES } from '@/lib/types'
 function LoginForm() {
     const router = useRouter()
     const searchParams = useSearchParams()
-    const [view, setView] = useState<'login' | 'register'>('login')
+    const [view, setView] = useState<'login' | 'register' | 'activate'>('login')
 
     // Login States
     const [role, setRole] = useState<'docente' | 'estudiante'>('docente')
@@ -106,6 +106,51 @@ function LoginForm() {
         }
     }
 
+    const handleActivate = async (e: React.FormEvent) => {
+        e.preventDefault()
+        setError(null)
+
+        const sanitizedDni = dni.replace(/[-\s]/g, '').trim()
+        if (sanitizedDni.length !== 13) {
+            setError('El DNI debe tener 13 dígitos.')
+            return
+        }
+
+        if (password.length < 6) {
+            setError('La contraseña debe tener al menos 6 caracteres.')
+            return
+        }
+
+        setLoading(true)
+        try {
+            const res = await fetch('/api/activate-student', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    numero_identidad: sanitizedDni,
+                    password: password
+                })
+            })
+
+            const data = await res.json()
+            if (!res.ok) throw new Error(data.error)
+
+            // Auto-login after activation
+            const supabase = createClient()
+            const { error: loginError } = await supabase.auth.signInWithPassword({
+                email: `${sanitizedDni}@asistencia.edu`,
+                password: password
+            })
+
+            if (loginError) throw loginError
+
+            window.location.href = '/estudiante/dashboard'
+        } catch (err: any) {
+            setError(err.message)
+            setLoading(false)
+        }
+    }
+
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 font-sans">
             <div className="sm:mx-auto sm:w-full sm:max-w-md">
@@ -115,12 +160,12 @@ function LoginForm() {
                     </div>
                 </div>
                 <h2 className="mt-6 text-center text-3xl font-black text-slate-900 tracking-tight">
-                    {view === 'login' ? 'Bienvenido de nuevo' : 'Registro de Docente'}
+                    {view === 'login' ? 'Bienvenido de nuevo' : view === 'register' ? 'Registro de Docente' : 'Activa tu Cuenta'}
                 </h2>
                 <p className="mt-2 text-center text-sm text-slate-500 font-medium">
                     {view === 'login'
                         ? 'Sistema de Control de Asistencia Escolar'
-                        : 'Crea tu perfil para empezar a gestionar la asistencia'}
+                        : view === 'register' ? 'Crea tu perfil para empezar a gestionar la asistencia' : 'Define tu contraseña para ingresar como estudiante'}
                 </p>
             </div>
 
@@ -201,7 +246,15 @@ function LoginForm() {
                                 Ingresar al Portal
                             </Button>
 
-                            <div className="pt-4 border-t border-slate-100 text-center">
+                            <div className="pt-4 border-t border-slate-100 flex flex-col gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => { setView('activate'); setError(null); setRole('estudiante'); }}
+                                    className="text-sm font-bold text-emerald-600 hover:text-emerald-700 flex items-center justify-center gap-2 mx-auto"
+                                >
+                                    <GraduationCap className="w-4 h-4" />
+                                    Soy estudiante, es mi primer ingreso
+                                </button>
                                 <button
                                     type="button"
                                     onClick={() => { setView('register'); setError(null); }}
@@ -211,6 +264,71 @@ function LoginForm() {
                                     ¿No tienes cuenta? Regístrate como Docente
                                 </button>
                             </div>
+                        </form>
+                    ) : view === 'activate' ? (
+                        /* ACTIVATE STUDENT VIEW */
+                        <form className="space-y-6" onSubmit={handleActivate}>
+                            <button
+                                type="button"
+                                onClick={() => setView('login')}
+                                className="flex items-center gap-2 text-slate-400 hover:text-slate-600 text-xs font-bold uppercase mb-2"
+                            >
+                                <ArrowLeft className="w-4 h-4" /> Volver al login
+                            </button>
+
+                            {error && (
+                                <div className="bg-red-50 border border-red-100 p-4 rounded-2xl flex items-start gap-3 text-red-600 text-sm animate-in shake duration-300">
+                                    <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                                    <p className="font-bold">{error}</p>
+                                </div>
+                            )}
+
+                            <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl flex items-start gap-3 text-emerald-700 text-sm">
+                                <ShieldCheck className="w-5 h-5 shrink-0 mt-0.5 text-emerald-600" />
+                                <p>Si tu docente ya te registró, ingresa tu DNI para crear tu contraseña personalizada.</p>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1 mb-2">
+                                    Número de Identidad (DNI)
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={dni}
+                                    maxLength={13}
+                                    onChange={(e) => setDni(e.target.value)}
+                                    className="block w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all font-medium"
+                                    placeholder="0801200000000"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1 mb-2">
+                                    Crea tu Contraseña
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        type={showPassword ? 'text' : 'password'}
+                                        required
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        className="block w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all font-medium"
+                                        placeholder="Mínimo 6 caracteres"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                    >
+                                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                    </button>
+                                </div>
+                            </div>
+
+                            <Button type="submit" loading={loading} className="w-full h-14 !rounded-2xl text-base shadow-lg shadow-emerald-100" icon={<ShieldCheck className="w-5 h-5" />}>
+                                Activar mi Cuenta
+                            </Button>
                         </form>
                     ) : (
                         /* REGISTER VIEW */
