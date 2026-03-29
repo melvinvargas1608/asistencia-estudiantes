@@ -12,8 +12,9 @@ function LoginForm() {
     const searchParams = useSearchParams()
     const [view, setView] = useState<'login' | 'register' | 'activate'>('login')
 
+    const initialRole = (searchParams.get('role') as 'docente' | 'estudiante') || 'docente'
     // Login States
-    const [role, setRole] = useState<'docente' | 'estudiante'>('docente')
+    const [role, setRole] = useState<'docente' | 'estudiante'>(initialRole)
     const [dni, setDni] = useState('')
     const [password, setPassword] = useState('')
     const [showPassword, setShowPassword] = useState(false)
