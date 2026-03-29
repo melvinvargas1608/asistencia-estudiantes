@@ -10,7 +10,7 @@ import { es } from 'date-fns/locale'
 
 export default function EstudianteDashboard() {
     const [student, setStudent] = useState<Estudiante | null>(null)
-    const [attendance, setAttendance] = useState<Asistencia[]>([])
+    const [attendance, setAttendance] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
@@ -31,14 +31,27 @@ export default function EstudianteDashboard() {
                 .order('fecha', { ascending: false })
                 .limit(30)
 
-            setAttendance(att || [])
+            const { data: justs } = await supabase
+                .from('justificaciones')
+                .select('*')
+                .eq('estudiante_id', s.id)
+                .order('fecha', { ascending: false })
+                .limit(30)
+
+            const combined: any[] = []
+            att?.forEach(a => combined.push({ id: `att-${a.id}`, fecha: a.fecha, estado: 'presente' }))
+            justs?.forEach(j => combined.push({ id: `jus-${j.id}`, fecha: j.fecha, estado: j.tipo }))
+
+            combined.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
+
+            setAttendance(combined.slice(0, 30))
             setLoading(false)
         }
         load()
     }, [])
 
     const total = attendance.length
-    const present = attendance.filter(a => a.presente).length
+    const present = attendance.filter(a => a.estado === 'presente').length
     const rate = total > 0 ? Math.round((present / total) * 100) : 0
 
     return (
@@ -103,10 +116,10 @@ export default function EstudianteDashboard() {
                                         </td>
                                         <td className="px-5 py-3">
                                             <div className="flex items-center gap-2">
-                                                {a.presente
-                                                    ? <><CheckCircle2 className="w-4 h-4 text-emerald-500" /><Badge variant="green">Presente</Badge></>
-                                                    : <><XCircle className="w-4 h-4 text-red-400" /><Badge variant="red">Ausente</Badge></>
-                                                }
+                                                {a.estado === 'presente' && <><CheckCircle2 className="w-4 h-4 text-emerald-500" /><Badge variant="green">Presente</Badge></>}
+                                                {a.estado === 'permiso' && <><Calendar className="w-4 h-4 text-indigo-500" /><Badge variant="blue">Permiso</Badge></>}
+                                                {a.estado === 'excusa' && <><XCircle className="w-4 h-4 text-orange-500" /><Badge variant="yellow" className="!bg-orange-100 !text-orange-700">Excusa</Badge></>}
+                                                {a.estado === 'ausente' && <><XCircle className="w-4 h-4 text-red-500" /><Badge variant="red">Ausente</Badge></>}
                                             </div>
                                         </td>
                                     </tr>
