@@ -418,7 +418,7 @@ export default function AsistenciaPage() {
                             ) : allStudents.map((s) => {
                                 const isPresent = todayAttendance[s.id]
                                 const justif = todayJustifs[s.id]
-                                const status = isPresent === true ? 'presente' : justif ? justif : 'ausente'
+                                const status = isPresent === true ? 'presente' : isPresent === false ? 'ausente' : justif ? justif : 'sin_registrar'
                                 
                                 return (
                                     <div key={s.id} className="flex flex-col sm:flex-row sm:items-center gap-4 px-5 py-4 hover:bg-slate-50/50 transition-colors">
