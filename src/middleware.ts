@@ -52,18 +52,24 @@ export async function middleware(request: NextRequest) {
     }
 
     // Guard docente routes for non-docentes
-    if (user && pathname.startsWith('/docente')) {
+    if (user && (pathname === '/docente' || pathname.startsWith('/docente/'))) {
         const role = user.user_metadata?.role
         if (role !== 'docente') {
             return NextResponse.redirect(new URL('/login', request.url))
         }
+        if (pathname === '/docente') {
+            return NextResponse.redirect(new URL('/docente/dashboard', request.url))
+        }
     }
 
     // Guard estudiante routes for non-estudiantes
-    if (user && pathname.startsWith('/estudiante')) {
+    if (user && (pathname === '/estudiante' || pathname.startsWith('/estudiante/'))) {
         const role = user.user_metadata?.role
         if (role !== 'estudiante') {
             return NextResponse.redirect(new URL('/login', request.url))
+        }
+        if (pathname === '/estudiante') {
+            return NextResponse.redirect(new URL('/estudiante/dashboard', request.url))
         }
     }
 
