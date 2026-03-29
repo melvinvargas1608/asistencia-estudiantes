@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { parseQRPayload } from '@/lib/qr'
-import { QrCode, CheckCircle2, XCircle, RefreshCw, Camera, Image as ImageIcon } from 'lucide-react'
+import { QrCode, CheckCircle2, XCircle, RefreshCw, Camera, Image as ImageIcon, Users, ListFilter, UserCheck, UserMinus } from 'lucide-react'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import { format } from 'date-fns'
@@ -20,6 +20,9 @@ export default function AsistenciaPage() {
     const html5QrRef = useRef<any>(null)
     const [scanning, setScanning] = useState(false)
     const [docenteId, setDocenteId] = useState<string | null>(null)
+    const [activeTab, setActiveTab] = useState<'scanner' | 'summary'>('scanner')
+
+    // States for Scanner
     const [results, setResults] = useState<ScanResult[]>([])
     const [cameras, setCameras] = useState<any[]>([])
     const [selectedCamera, setSelectedCamera] = useState<string>('')
@@ -28,6 +31,12 @@ export default function AsistenciaPage() {
     const [showResultOverlay, setShowResultOverlay] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const fileRef = useRef<HTMLInputElement>(null)
+
+    // States for Summary
+    const [allStudents, setAllStudents] = useState<Estudiante[]>([])
+    const [todayAttendance, setTodayAttendance] = useState<Record<string, boolean>>({})
+    const [loadingSummary, setLoadingSummary] = useState(false)
+
     const today = format(new Date(), "EEEE, d 'de' MMMM yyyy", { locale: es })
     const todayStr = format(new Date(), 'yyyy-MM-dd')
 
@@ -37,7 +46,10 @@ export default function AsistenciaPage() {
             if (!user) return
             const { data } = await supabase
                 .from('docentes').select('id').eq('auth_user_id', user.id).single()
-            if (data) setDocenteId(data.id)
+            if (data) {
+                setDocenteId(data.id)
+                fetchDailyData(data.id)
+            }
         })
 
         return () => {
@@ -46,6 +58,64 @@ export default function AsistenciaPage() {
             }
         }
     }, [])
+
+    async function fetchDailyData(dId: string) {
+        setLoadingSummary(true)
+        const supabase = createClient()
+
+        // Fetch all students for this teacher
+        const { data: students } = await supabase
+            .from('estudiantes')
+            .select('*')
+            .eq('docente_id', dId)
+            .order('apellido', { ascending: true })
+
+        if (students) setAllStudents(students)
+
+        // Fetch today's records
+        const { data: records } = await supabase
+            .from('asistencia')
+            .select('estudiante_id')
+            .eq('fecha', todayStr)
+
+        const attendanceMap: Record<string, boolean> = {}
+        records?.forEach(r => attendanceMap[r.estudiante_id] = true)
+        setTodayAttendance(attendanceMap)
+        setLoadingSummary(false)
+    }
+
+    async function toggleAttendance(student: Estudiante) {
+        const isPresent = todayAttendance[student.id]
+        const supabase = createClient()
+
+        if (isPresent) {
+            // Remove
+            const { error } = await supabase
+                .from('asistencia')
+                .delete()
+                .eq('estudiante_id', student.id)
+                .eq('fecha', todayStr)
+
+            if (!error) {
+                setTodayAttendance(prev => {
+                    const next = { ...prev }
+                    delete next[student.id]
+                    return next
+                })
+            }
+        } else {
+            // Add
+            const { error } = await supabase
+                .from('asistencia')
+                .insert({ estudiante_id: student.id, fecha: todayStr, presente: true })
+
+            if (!error) {
+                setTodayAttendance(prev => ({ ...prev, [student.id]: true }))
+                // Trigger success visual if needed
+                if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(100)
+            }
+        }
+    }
 
     async function startScanner() {
         setError(null)
@@ -56,15 +126,11 @@ export default function AsistenciaPage() {
         try {
             const { Html5Qrcode } = await import('html5-qrcode')
 
-            // Cleanup previous instance if exists (Very important for Hardware stability)
             if (html5QrRef.current) {
-                try {
-                    await html5QrRef.current.stop()
-                } catch (e) { }
+                try { await html5QrRef.current.stop() } catch (e) { }
                 html5QrRef.current = null
             }
 
-            // Get cameras if needed
             if (cameras.length === 0) {
                 const devices = await Html5Qrcode.getCameras()
                 if (devices && devices.length > 0) {
@@ -76,12 +142,7 @@ export default function AsistenciaPage() {
             const scanner = new Html5Qrcode('qr-reader')
             html5QrRef.current = scanner
 
-            const config = {
-                fps: 15,
-                qrbox: 260,
-                // Removed aspectRatio for maximum compatibility
-            }
-
+            const config = { fps: 15, qrbox: 260 }
             const deviceId = selectedCamera || { facingMode: { ideal: 'environment' } }
 
             await scanner.start(
@@ -96,17 +157,14 @@ export default function AsistenciaPage() {
             )
             setScanning(true)
         } catch (err: any) {
-            console.error('Scanner Error:', err)
-            setError(`Error de hardware: ${err.message || 'No se pudo iniciar la cámara'}. Intenta "Subir Imagen".`)
+            setError(`Error de hardware: ${err.message || 'No se pudo iniciar la cámara'}`)
             setScanning(false)
         }
     }
 
     async function stopScanner() {
         if (html5QrRef.current) {
-            try {
-                await html5QrRef.current.stop()
-            } catch (e) { }
+            try { await html5QrRef.current.stop() } catch (e) { }
             html5QrRef.current = null
         }
         setScanning(false)
@@ -140,42 +198,35 @@ export default function AsistenciaPage() {
     async function processQR(rawText: string) {
         const studentId = parseQRPayload(rawText)
         if (!studentId) {
-            updateResult({ student: {} as Estudiante, status: 'error', message: 'QR inválido: no corresponde a un estudiante.' })
+            updateResult({ student: {} as Estudiante, status: 'error', message: 'QR inválido.' })
             return
         }
 
         const supabase = createClient()
         const { data: student } = await supabase
-            .from('estudiantes')
-            .select('*')
-            .eq('auth_user_id', studentId)
-            .single()
+            .from('estudiantes').select('*').eq('auth_user_id', studentId).single()
 
         if (!student) {
-            updateResult({ student: {} as Estudiante, status: 'error', message: `No se encontró estudiante en la base de datos.` })
+            updateResult({ student: {} as Estudiante, status: 'error', message: `Estudiante no encontrado.` })
             return
         }
 
         const { data: existing } = await supabase
-            .from('asistencia')
-            .select('id')
-            .eq('estudiante_id', student.id)
-            .eq('fecha', todayStr)
-            .single()
+            .from('asistencia').select('id').eq('estudiante_id', student.id).eq('fecha', todayStr).single()
 
         if (existing) {
-            updateResult({ student, status: 'already', message: 'Asistencia ya registrada hoy.' })
+            updateResult({ student, status: 'already', message: 'Ya registrado hoy.' })
             return
         }
 
         const { error: insertError } = await supabase
-            .from('asistencia')
-            .insert({ estudiante_id: student.id, fecha: todayStr, presente: true })
+            .from('asistencia').insert({ estudiante_id: student.id, fecha: todayStr, presente: true })
 
         if (insertError) {
             updateResult({ student, status: 'error', message: insertError.message })
         } else {
-            updateResult({ student, status: 'success', message: '¡Asistencia registrada exitosamente!' })
+            updateResult({ student, status: 'success', message: '¡Asistencia registrada!' })
+            setTodayAttendance(prev => ({ ...prev, [student.id]: true }))
         }
     }
 
@@ -183,165 +234,215 @@ export default function AsistenciaPage() {
         setResults(prev => [r, ...prev.slice(0, 9)])
         setLastResult(r)
         setShowResultOverlay(true)
-
-        // Vibrate if supported
         if (typeof navigator !== 'undefined' && navigator.vibrate) {
             navigator.vibrate(r.status === 'success' ? 200 : [100, 50, 100])
         }
-
-        // Auto-hide result and allow scanning again after 2.5 seconds
         setTimeout(() => {
             setShowResultOverlay(false)
             setLastScan(null)
-        }, 2500)
+        }, 2200)
     }
 
+    const presentCount = Object.keys(todayAttendance).length
+    const totalCount = allStudents.length
+    const absentCount = totalCount - presentCount
+
     return (
-        <div className="max-w-3xl mx-auto space-y-6">
+        <div className="max-w-3xl mx-auto space-y-6 pb-20">
+            {/* Header */}
             <div className="flex justify-between items-end px-4 sm:px-0">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-800">Tomar Asistencia</h1>
-                    <p className="text-slate-500 text-sm mt-0.5 capitalize">{today}</p>
+                    <h1 className="text-2xl font-black text-slate-800 tracking-tight">Registro de Asistencia</h1>
+                    <p className="text-slate-500 text-sm mt-0.5 font-medium capitalize">{today}</p>
                 </div>
             </div>
 
-            <div className="bg-white sm:rounded-3xl border-y sm:border border-slate-200 shadow-xl overflow-hidden">
-                <div className="p-6 border-b border-slate-100 bg-slate-50/50 text-center sm:text-left">
-                    <div className="flex items-center justify-between flex-wrap gap-4">
+            {/* Tab Navigation */}
+            <div className="flex bg-slate-100 p-1.5 rounded-2xl mx-4 sm:mx-0 shadow-inner">
+                <button
+                    onClick={() => { setActiveTab('scanner'); stopScanner(); }}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'scanner' ? 'bg-white text-indigo-600 shadow-md scale-[1.02]' : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                >
+                    <QrCode className="w-4 h-4" />
+                    Escáner QR
+                </button>
+                <button
+                    onClick={() => { setActiveTab('summary'); stopScanner(); if (docenteId) fetchDailyData(docenteId); }}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'summary' ? 'bg-white text-indigo-600 shadow-md scale-[1.02]' : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                >
+                    <Users className="w-4 h-4" />
+                    Resumen Diario
+                </button>
+            </div>
+
+            {activeTab === 'scanner' ? (
+                /* SCANNER TAB */
+                <div className="bg-white sm:rounded-3xl border-y sm:border border-slate-200 shadow-xl overflow-hidden animate-in fade-in duration-300">
+                    <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 bg-indigo-600 rounded-lg">
+                            <div className="p-2 bg-indigo-600 rounded-lg shadow-lg shadow-indigo-200">
                                 <QrCode className="w-5 h-5 text-white" />
                             </div>
-                            <div>
-                                <h2 className="font-bold text-slate-800">Escáner QR</h2>
-                                <p className="text-[10px] text-slate-400">Escanea el código del estudiante</p>
-                            </div>
+                            <h2 className="font-bold text-slate-800">Listo para escanear</h2>
                         </div>
                         <Badge variant={scanning ? 'green' : 'gray'}>
-                            {scanning ? 'Escaneando...' : 'Inactivo'}
+                            {scanning ? 'ACTIVO' : 'INACTIVO'}
                         </Badge>
                     </div>
-                </div>
 
-                <div className="p-4 sm:p-8">
-                    {error && !scanning && (
-                        <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 text-red-600 text-sm animate-in fade-in slide-in-from-top-2">
-                            <XCircle className="w-5 h-5 shrink-0" />
-                            <p className="font-medium flex-1">{error}</p>
-                            <button onClick={() => setError(null)} className="p-1 hover:bg-red-100 rounded-full transition-colors">
-                                <XCircle className="w-4 h-4" />
-                            </button>
-                        </div>
-                    )}
-
-                    {cameras.length > 0 && (
-                        <div className="mb-6 flex items-center gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-100">
-                            <Camera className="w-4 h-4 text-slate-400" />
-                            <span className="text-xs font-semibold text-slate-500">Origen:</span>
-                            <select
-                                value={selectedCamera}
-                                onChange={(e) => switchCamera(e.target.value)}
-                                className="flex-1 text-xs bg-transparent border-none focus:ring-0 font-medium text-slate-700 cursor-pointer overflow-hidden whitespace-nowrap text-ellipsis"
-                            >
-                                {cameras.map(c => (
-                                    <option key={c.id} value={c.id}>{c.label || `Cámara ${c.id.slice(0, 8)}`}</option>
-                                ))}
-                            </select>
-                        </div>
-                    )}
-
-                    <div className={`relative w-full aspect-square sm:aspect-video rounded-3xl overflow-hidden bg-black shadow-2xl transition-all duration-500 ${scanning ? 'scale-100 opacity-100' : 'scale-95 opacity-50'}`}>
-                        <div id="qr-reader" className="w-full h-full [&_video]:object-cover" />
-                        <div id="qr-reader-temp" className="hidden" />
-
-                        {scanning && (
-                            <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center">
-                                <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[1px] bg-red-500/50 shadow-[0_0_10px_rgba(239,68,68,0.5)] animate-scan visible md:hidden" />
-                                <div className="absolute inset-0 bg-indigo-500/5" />
-                                <div className="w-64 h-64 border-2 border-dashed border-white/30 rounded-3xl relative">
-                                    <div className="absolute top-1/2 left-0 w-full h-[2px] bg-indigo-500 shadow-[0_0_20px_rgba(79,70,229,0.8)] animate-scan" />
-                                </div>
+                    <div className="p-4 sm:p-8">
+                        {error && !scanning && (
+                            <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 text-red-600 text-sm animate-in zoom-in-95">
+                                <XCircle className="w-5 h-5 shrink-0" />
+                                <p className="font-medium flex-1">{error}</p>
+                                <button onClick={() => setError(null)} className="p-1 hover:bg-red-100 rounded-full"><XCircle className="w-4 h-4" /></button>
                             </div>
                         )}
 
-                        {/* Scanner Success/Error Overlay */}
-                        {showResultOverlay && lastResult && (
-                            <div className={`absolute inset-0 z-20 flex flex-col items-center justify-center p-6 text-center backdrop-blur-md transition-all duration-300 animate-in fade-in scale-in ${lastResult.status === 'success' ? 'bg-emerald-600/90' : lastResult.status === 'already' ? 'bg-amber-500/90' : 'bg-red-600/90'
-                                }`}>
-                                <div className="bg-white rounded-full p-4 mb-4 shadow-2xl scale-110">
-                                    {lastResult.status === 'success' && <CheckCircle2 className="w-12 h-12 text-emerald-600" />}
-                                    {lastResult.status === 'already' && <RefreshCw className="w-12 h-12 text-amber-500" />}
-                                    {lastResult.status === 'error' && <XCircle className="w-12 h-12 text-red-600" />}
-                                </div>
-                                <h3 className="text-2xl font-black text-white mb-2 leading-tight uppercase tracking-wider">
-                                    {lastResult.status === 'success' ? '¡Éxito!' : lastResult.status === 'already' ? 'Ya registrado' : 'Error'}
-                                </h3>
-                                {lastResult.student?.nombre && (
-                                    <p className="text-white font-bold text-lg mb-1 drop-shadow-sm">
-                                        {lastResult.student.nombre} {lastResult.student.apellido}
-                                    </p>
-                                )}
-                                <p className="text-white/90 text-sm font-medium italic">
-                                    {lastResult.message}
-                                </p>
+                        {cameras.length > 0 && scanning && (
+                            <div className="mb-6 flex items-center gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                                <Camera className="w-4 h-4 text-slate-400" />
+                                <select value={selectedCamera} onChange={(e) => switchCamera(e.target.value)} className="flex-1 text-xs bg-transparent border-none focus:ring-0 font-bold text-slate-700">
+                                    {cameras.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+                                </select>
                             </div>
                         )}
-                    </div>
 
-                    <div className="mt-8 flex flex-col items-center gap-6">
-                        {!scanning ? (
-                            <div className="flex flex-col sm:flex-row gap-4 w-full max-w-sm">
-                                <Button className="flex-1 h-12 !rounded-2xl shadow-lg shadow-indigo-200" icon={<QrCode className="w-5 h-5" />} onClick={startScanner}>
-                                    Usar Cámara
-                                </Button>
-                                <Button variant="secondary" className="flex-1 h-12 !rounded-2xl" icon={<ImageIcon className="w-5 h-5" />} onClick={() => fileRef.current?.click()}>
-                                    Subir Imagen
-                                </Button>
-                                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileScan} />
-                            </div>
-                        ) : (
-                            <div className="flex flex-col items-center gap-3">
-                                <Button variant="danger" className="h-12 px-10 !rounded-2xl shadow-lg shadow-red-200" icon={<XCircle className="w-5 h-5" />} onClick={stopScanner}>
+                        <div className={`relative w-full aspect-square sm:aspect-video rounded-3xl overflow-hidden bg-black shadow-2xl transition-all duration-500 ${scanning ? 'scale-100 opacity-100 ring-4 ring-indigo-50' : 'scale-95 opacity-50'}`}>
+                            <div id="qr-reader" className="w-full h-full [&_video]:object-cover" />
+                            <div id="qr-reader-temp" className="hidden" />
+
+                            {scanning && (
+                                <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center">
+                                    <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[1px] bg-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.8)] animate-scan" />
+                                    <div className="w-64 h-64 border-2 border-dashed border-white/40 rounded-3xl relative">
+                                        <div className="absolute top-1/2 left-0 w-full h-[2px] bg-indigo-500 shadow-[0_0_20px_rgba(79,70,229,1)] animate-scan" />
+                                    </div>
+                                </div>
+                            )}
+
+                            {showResultOverlay && lastResult && (
+                                <div className={`absolute inset-0 z-50 flex flex-col items-center justify-center p-6 text-center backdrop-blur-lg animate-in fade-in zoom-in duration-300 ${lastResult.status === 'success' ? 'bg-emerald-600/90' : lastResult.status === 'already' ? 'bg-amber-500/90' : 'bg-red-600/90'
+                                    }`}>
+                                    <div className="bg-white rounded-full p-6 mb-4 shadow-2xl animate-bounce-short">
+                                        {lastResult.status === 'success' && <CheckCircle2 className="w-16 h-16 text-emerald-600" />}
+                                        {lastResult.status === 'already' && <RefreshCw className="w-16 h-16 text-amber-500" />}
+                                        {lastResult.status === 'error' && <XCircle className="w-16 h-16 text-red-600" />}
+                                    </div>
+                                    <h3 className="text-3xl font-black text-white mb-2 tracking-tighter uppercase">
+                                        {lastResult.status === 'success' ? '¡LISTO!' : lastResult.status === 'already' ? 'YA ESTÁ' : 'ERROR'}
+                                    </h3>
+                                    {lastResult.student?.nombre && (
+                                        <p className="text-white font-bold text-xl mb-1">{lastResult.student.nombre} {lastResult.student.apellido}</p>
+                                    )}
+                                    <p className="text-white/90 font-medium italic">{lastResult.message}</p>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="mt-8 flex flex-col items-center gap-6">
+                            {!scanning ? (
+                                <div className="flex flex-col sm:flex-row gap-4 w-full max-w-sm">
+                                    <Button className="flex-1 h-14 !rounded-2xl shadow-xl shadow-indigo-100 text-base" onClick={startScanner} icon={<QrCode className="w-5 h-5" />}>
+                                        Usar Cámara
+                                    </Button>
+                                    <Button variant="secondary" className="flex-1 h-14 !rounded-2xl text-base" onClick={() => fileRef.current?.click()} icon={<ImageIcon className="w-5 h-5" />}>
+                                        Subir Imagen
+                                    </Button>
+                                    <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileScan} />
+                                </div>
+                            ) : (
+                                <Button variant="danger" className="h-14 px-12 !rounded-2xl shadow-xl shadow-red-100 text-base" onClick={stopScanner} icon={<XCircle className="w-5 h-5" />}>
                                     Detener Escáner
                                 </Button>
-                                <p className="text-xs text-slate-400 italic text-center px-4">Si ves la pantalla negra, intenta cambiar de cámara o usar "Subir Imagen"</p>
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
                 </div>
-            </div>
-
-            {results.length > 0 && (
-                <div className="bg-white sm:rounded-3xl border border-slate-200 shadow-xl overflow-hidden animate-in slide-in-from-bottom-4 duration-500 mx-4 sm:mx-0">
-                    <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
-                        <div className="flex items-center gap-2">
-                            <h2 className="font-bold text-slate-800">Registros Recientes</h2>
-                            <Badge variant="blue">{results.length}</Badge>
+            ) : (
+                /* SUMMARY TAB */
+                <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300 mx-4 sm:mx-0">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-emerald-50 border border-emerald-100 p-5 rounded-3xl flex items-center justify-between shadow-sm">
+                            <div>
+                                <p className="text-emerald-600 text-[10px] font-black uppercase tracking-widest mb-1">Presentes</p>
+                                <p className="text-3xl font-black text-emerald-800 leading-none">{presentCount}</p>
+                            </div>
+                            <div className="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center">
+                                <UserCheck className="w-6 h-6 text-emerald-600" />
+                            </div>
                         </div>
-                        <button onClick={() => setResults([])} className="text-slate-400 hover:text-slate-600 text-xs font-semibold hover:underline transition-all">
-                            Limpiar todo
-                        </button>
+                        <div className="bg-red-50 border border-red-100 p-5 rounded-3xl flex items-center justify-between shadow-sm">
+                            <div>
+                                <p className="text-red-600 text-[10px] font-black uppercase tracking-widest mb-1">Ausentes</p>
+                                <p className="text-3xl font-black text-red-800 leading-none">{loadingSummary ? '...' : absentCount}</p>
+                            </div>
+                            <div className="w-12 h-12 bg-red-100 rounded-2xl flex items-center justify-center">
+                                <UserMinus className="w-6 h-6 text-red-600" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">
+                        <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                            <div className="flex items-center gap-2">
+                                <ListFilter className="w-4 h-4 text-slate-400" />
+                                <h2 className="font-bold text-slate-800">Lista de Estudiantes</h2>
+                            </div>
+                            <Badge variant="blue">{totalCount} Total</Badge>
+                        </div>
+
+                        <div className="divide-y divide-slate-50">
+                            {loadingSummary ? (
+                                <div className="p-20 text-center"><RefreshCw className="w-8 h-8 text-indigo-300 animate-spin mx-auto" /><p className="mt-4 text-slate-400 font-medium">Cargando lista...</p></div>
+                            ) : allStudents.map((s) => {
+                                const isPresent = todayAttendance[s.id]
+                                return (
+                                    <div key={s.id} className="flex items-center gap-4 px-5 py-4 hover:bg-slate-50/50 transition-colors">
+                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs ${isPresent ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'
+                                            }`}>
+                                            {s.nombre[0]}{s.apellido[0]}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-bold text-slate-800 text-sm truncate uppercase">{s.nombre} {s.apellido}</p>
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">ID: {s.numero_identidad}</p>
+                                        </div>
+                                        <button
+                                            onClick={() => toggleAttendance(s)}
+                                            className={`h-9 px-4 rounded-xl text-[10px] font-black transition-all active:scale-95 ${isPresent
+                                                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-100'
+                                                    : 'bg-white border-2 border-slate-100 text-slate-400 hover:border-indigo-100 hover:text-indigo-500'
+                                                }`}
+                                        >
+                                            {isPresent ? 'PRESENTE' : 'AUSENTE'}
+                                        </button>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'scanner' && results.length > 0 && (
+                <div className="bg-white sm:rounded-3xl border border-slate-200 shadow-xl overflow-hidden animate-in slide-in-from-bottom-4 mx-4 sm:mx-0">
+                    <div className="p-5 border-b border-slate-100 flex items-center justify-between text-slate-800">
+                        <h2 className="font-bold">Últimos Registros</h2>
+                        <button onClick={() => setResults([])} className="text-[10px] font-black text-slate-400 uppercase hover:text-slate-600 transition-all">Limpiar</button>
                     </div>
                     <div className="divide-y divide-slate-50">
                         {results.map((r, i) => (
-                            <div key={i} className="flex items-center gap-4 px-6 py-4 hover:bg-slate-50/50 transition-colors">
-                                <div className={`p-2 rounded-xl ${r.status === 'success' ? 'bg-emerald-100' : r.status === 'already' ? 'bg-amber-100' : 'bg-red-100'}`}>
-                                    {r.status === 'success' && <CheckCircle2 className="w-5 h-5 text-emerald-600" />}
-                                    {r.status === 'already' && <RefreshCw className="w-5 h-5 text-amber-600" />}
-                                    {r.status === 'error' && <XCircle className="w-5 h-5 text-red-600" />}
+                            <div key={i} className="flex items-center gap-4 px-6 py-3 hover:bg-slate-50/50">
+                                <div className={`p-1.5 rounded-lg ${r.status === 'success' ? 'bg-emerald-100' : 'bg-amber-100'}`}>
+                                    {r.status === 'success' ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <RefreshCw className="w-4 h-4 text-amber-600" />}
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                    {r.student?.nombre ? (
-                                        <p className="font-bold text-slate-800 text-sm">
-                                            {r.student.nombre} {r.student.apellido}
-                                            <span className="text-slate-400 font-normal ml-2 text-xs">{r.student.grado} - {r.student.seccion}</span>
-                                        </p>
-                                    ) : null}
-                                    <p className={`text-xs mt-0.5 font-medium ${r.status === 'success' ? 'text-emerald-600' : r.status === 'already' ? 'text-amber-600' : 'text-red-600'}`}>
-                                        {r.message}
-                                    </p>
+                                <div className="flex-1">
+                                    <p className="font-bold text-slate-800 text-xs uppercase">{r.student.nombre} {r.student.apellido}</p>
+                                    <p className="text-[10px] text-slate-400 font-medium italic">{r.message}</p>
                                 </div>
-                                <span className="text-[10px] font-bold text-slate-300 bg-slate-50 px-2 py-1 rounded-md">{format(new Date(), 'HH:mm')}</span>
+                                <span className="text-[9px] font-bold text-slate-300 bg-slate-50 px-2 py-0.5 rounded-md">{format(new Date(), 'HH:mm')}</span>
                             </div>
                         ))}
                     </div>
@@ -349,22 +450,10 @@ export default function AsistenciaPage() {
             )}
 
             <style jsx global>{`
-                @keyframes scan {
-                    0% { top: 10%; opacity: 0; }
-                    20% { opacity: 0.8; }
-                    80% { opacity: 0.8; }
-                    100% { top: 90%; opacity: 0; }
-                }
-                .animate-scan {
-                    animation: scan 3s linear infinite;
-                }
-                .scale-in {
-                    animation: scaleIn 0.3s ease-out;
-                }
-                @keyframes scaleIn {
-                    from { transform: scale(0.95); opacity: 0; }
-                    to { transform: scale(1); opacity: 1; }
-                }
+                @keyframes scan { 0% { top: 10%; } 100% { top: 90%; } }
+                .animate-scan { animation: scan 2s linear infinite; }
+                @keyframes bounce-short { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+                .animate-bounce-short { animation: bounce-short 1s ease-in-out infinite; }
             `}</style>
         </div>
     )
