@@ -175,7 +175,7 @@ function LoginForm() {
                     </div>
                 </div>
                 <h2 className="mt-6 text-center text-3xl font-black text-slate-900 tracking-tight">
-                    {view === 'login' ? 'Bienvenido de nuevo' : view === 'register' ? 'Registro de Docente' : 'Acceso para Padres'}
+                    {view === 'login' ? 'Bienvenidos' : view === 'register' ? 'Registro de Docente' : 'Acceso para Padres'}
                 </h2>
                 <p className="mt-2 text-center text-sm text-slate-500 font-medium">
                     {view === 'login'
