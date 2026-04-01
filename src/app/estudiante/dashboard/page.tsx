@@ -58,7 +58,7 @@ export default function EstudianteDashboard() {
         <div className="max-w-4xl mx-auto space-y-6">
             <div>
                 <h1 className="text-2xl font-bold text-slate-800">
-                    {loading ? 'Cargando...' : `Hola, ${student?.nombre}!`}
+                    {loading ? 'Cargando...' : `Hola, ${student?.nombre} ${student?.apellido}!`}
                 </h1>
                 <p className="text-slate-500 text-sm mt-0.5 capitalize">
                     {format(new Date(), "EEEE, d 'de' MMMM yyyy", { locale: es })}
