@@ -71,16 +71,19 @@ export default function DocenteDashboard() {
         { label: 'Tasa de Asistencia', value: `${stats.attendanceRate}%`, icon: TrendingUp, color: 'amber', bg: 'bg-amber-50', iconColor: 'text-amber-600', border: 'border-amber-100' },
     ]
 
+    const saludo = () => {
+        if (loading) return 'Cargando...'
+
+        if (docente?.sexo === 'F') return `¡Bienvenida, Profesora ${docente?.nombre} ${docente?.apellido}!`
+        return `¡Bienvenido, Profesor ${docente?.nombre} ${docente?.apellido}!`
+    }
+
     return (
         <div className="max-w-5xl mx-auto space-y-6">
-            {/* Header */}
+            {/* Header - saludo */}
             <div>
                 <h1 className="text-2xl font-bold text-slate-800">
-                    {loading
-                        ? 'Cargando...'
-                        : docente?.sexo === 'F'
-                            ? `¡Bienvenida, Profesora ${docente?.nombre} ${docente?.apellido}!`
-                            : `¡Bienvenido, Profesor ${docente?.nombre} ${docente?.apellido}!`}
+                    {saludo()}
                 </h1>
                 <p className="text-slate-500 mt-0.5 capitalize">{today}</p>
                 {docente && (
