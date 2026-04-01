@@ -76,7 +76,7 @@ export default function DocenteDashboard() {
             {/* Header */}
             <div>
                 <h1 className="text-2xl font-bold text-slate-800">
-                    {loading ? 'Cargando...' : `¡Bienvenido/a, ${docente?.nombre}!`}
+                    {loading ? 'Cargando...' : `¡Bienvenido(a), ${docente?.nombre} ${docente?.apellido}!`}
                 </h1>
                 <p className="text-slate-500 mt-0.5 capitalize">{today}</p>
                 {docente && (
