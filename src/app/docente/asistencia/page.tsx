@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { parseQRPayload } from '@/lib/qr'
-import { QrCode, CheckCircle2, XCircle, RefreshCw, Camera, Image as ImageIcon, Users, ListFilter, UserCheck, UserMinus, FileText, FileCheck, FileX, Clock, CalendarIcon, ExternalLink } from 'lucide-react'
+import { QrCode, CheckCircle2, XCircle, RefreshCw, Camera, Users, ListFilter, UserCheck, UserMinus, Clock, CalendarIcon } from 'lucide-react'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import { format } from 'date-fns'
@@ -34,7 +34,6 @@ export default function AsistenciaPage() {
     const [lastResult, setLastResult] = useState<ScanResult | null>(null)
     const [showResultOverlay, setShowResultOverlay] = useState(false)
     const [error, setError] = useState<string | null>(null)
-    const fileRef = useRef<HTMLInputElement>(null)
 
     // States for Summary
     const [allStudents, setAllStudents] = useState<Estudiante[]>([])
@@ -197,22 +196,6 @@ export default function AsistenciaPage() {
         }
     }
 
-    async function handleFileScan(e: React.ChangeEvent<HTMLInputElement>) {
-        const file = e.target.files?.[0]
-        if (!file) return
-        setError(null)
-
-        try {
-            const { Html5Qrcode } = await import('html5-qrcode')
-            const tempReader = new Html5Qrcode('qr-reader-temp')
-            const decodedText = await tempReader.scanFile(file, true)
-            await processQR(decodedText)
-            tempReader.clear()
-        } catch (err: any) {
-            setError('No se encontró un código QR en la imagen.')
-        }
-    }
-
     async function processQR(rawText: string) {
         const studentId = parseQRPayload(rawText)
         if (!studentId) {
@@ -261,7 +244,7 @@ export default function AsistenciaPage() {
         }, 2200)
     }
 
-    const presentCount = Object.keys(todayAttendance).length
+    const presentCount = Object.values(todayAttendance).filter(v => v === true).length
     const totalCount = allStudents.length
     const absentCount = totalCount - presentCount
 
@@ -330,7 +313,6 @@ export default function AsistenciaPage() {
 
                         <div className={`relative w-full aspect-square sm:aspect-video rounded-3xl overflow-hidden bg-black shadow-2xl transition-all duration-500 ${scanning ? 'scale-100 opacity-100 ring-4 ring-indigo-50' : 'scale-95 opacity-50'}`}>
                             <div id="qr-reader" className="w-full h-full [&_video]:object-cover" />
-                            <div id="qr-reader-temp" className="hidden" />
 
                             {scanning && (
                                 <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center">
@@ -362,15 +344,9 @@ export default function AsistenciaPage() {
 
                         <div className="mt-8 flex flex-col items-center gap-6">
                             {!scanning ? (
-                                <div className="flex flex-col sm:flex-row gap-4 w-full max-w-sm">
-                                    <Button className="flex-1 h-14 !rounded-2xl shadow-xl shadow-indigo-100 text-base" onClick={startScanner} icon={<QrCode className="w-5 h-5" />}>
-                                        Usar Cámara
-                                    </Button>
-                                    <Button variant="secondary" className="flex-1 h-14 !rounded-2xl text-base" onClick={() => fileRef.current?.click()} icon={<ImageIcon className="w-5 h-5" />}>
-                                        Subir Imagen
-                                    </Button>
-                                    <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileScan} />
-                                </div>
+                                <Button className="h-14 px-12 !rounded-2xl shadow-xl shadow-indigo-100 text-base" onClick={startScanner} icon={<QrCode className="w-5 h-5" />}>
+                                    Iniciar Escáner
+                                </Button>
                             ) : (
                                 <Button variant="danger" className="h-14 px-12 !rounded-2xl shadow-xl shadow-red-100 text-base" onClick={stopScanner} icon={<XCircle className="w-5 h-5" />}>
                                     Detener Escáner

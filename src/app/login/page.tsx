@@ -3,7 +3,7 @@
 import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { LogIn, UserCircle, ShieldCheck, AlertCircle, Eye, EyeOff, UserPlus, ArrowLeft, GraduationCap, School, Users } from 'lucide-react'
+import { LogIn, UserCircle, ShieldCheck, AlertCircle, Eye, EyeOff, UserPlus, ArrowLeft, GraduationCap, School, CheckSquare, Square } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import { GRADOS, SECCIONES } from '@/lib/types'
 
@@ -26,7 +26,7 @@ function LoginForm() {
     const [regApellido, setRegApellido] = useState('')
     const [regDni, setRegDni] = useState('')
     const [regSexo, setRegSexo] = useState('')
-    const [regGrado, setRegGrado] = useState('')
+    const [regGrados, setRegGrados] = useState<string[]>([])   // multi-grado
     const [regSeccion, setRegSeccion] = useState('')
     const [regPassword, setRegPassword] = useState('')
 
@@ -66,6 +66,12 @@ function LoginForm() {
         }
     }
 
+    const toggleGrado = (g: string) => {
+        setRegGrados(prev =>
+            prev.includes(g) ? prev.filter(x => x !== g) : [...prev, g]
+        )
+    }
+
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault()
         setError(null)
@@ -73,6 +79,11 @@ function LoginForm() {
         const sanitizedDni = regDni.replace(/[-\s]/g, '').trim()
         if (sanitizedDni.length !== 13) {
             setError('El DNI debe tener 13 dígitos.')
+            return
+        }
+
+        if (regGrados.length === 0) {
+            setError('Debes seleccionar al menos un grado.')
             return
         }
 
@@ -91,7 +102,7 @@ function LoginForm() {
                     apellido: regApellido,
                     numero_identidad: sanitizedDni,
                     sexo: regSexo,
-                    grado: regGrado,
+                    grados: regGrados,
                     seccion: regSeccion,
                     password: regPassword
                 })
@@ -396,21 +407,44 @@ function LoginForm() {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1 mb-1.5">Grado</label>
-                                    <select required value={regGrado} onChange={e => setRegGrado(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm">
-                                        <option value="">Seleccionar</option>
-                                        {GRADOS.map(g => <option key={g} value={g}>{g} Grado</option>)}
-                                    </select>
+                            {/* Multi-grado selector */}
+                            <div>
+                                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1 mb-2">
+                                    Grados que atiende
+                                    {regGrados.length > 0 && (
+                                        <span className="ml-2 text-indigo-600 normal-case font-bold">({regGrados.length} seleccionado{regGrados.length > 1 ? 's' : ''})</span>
+                                    )}
+                                </label>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {GRADOS.map(g => {
+                                        const selected = regGrados.includes(g)
+                                        return (
+                                            <button
+                                                key={g}
+                                                type="button"
+                                                onClick={() => toggleGrado(g)}
+                                                className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border-2 text-sm font-bold transition-all ${selected
+                                                    ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100'
+                                                    : 'bg-slate-50 border-slate-200 text-slate-500 hover:border-indigo-300 hover:text-indigo-600'
+                                                    }`}
+                                            >
+                                                {selected
+                                                    ? <CheckSquare className="w-4 h-4 shrink-0" />
+                                                    : <Square className="w-4 h-4 shrink-0" />
+                                                }
+                                                {g}
+                                            </button>
+                                        )
+                                    })}
                                 </div>
-                                <div>
-                                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1 mb-1.5">Sección</label>
-                                    <select required value={regSeccion} onChange={e => setRegSeccion(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm">
-                                        <option value="">Seleccionar</option>
-                                        {SECCIONES.map(s => <option key={s} value={s}>{s}</option>)}
-                                    </select>
-                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest ml-1 mb-1.5">Sección</label>
+                                <select required value={regSeccion} onChange={e => setRegSeccion(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm">
+                                    <option value="">Seleccionar</option>
+                                    {SECCIONES.map(s => <option key={s} value={s}>{s}</option>)}
+                                </select>
                             </div>
 
                             <div>

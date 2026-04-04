@@ -2,21 +2,36 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Users, QrCode, FileText, CheckCircle, XCircle, TrendingUp } from 'lucide-react'
+import { Users, QrCode, FileText } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import type { Docente } from '@/lib/types'
 
-interface Stats {
-    totalStudents: number
-    presentToday: number
-    absentToday: number
-    attendanceRate: number
+interface GradeStats {
+    grado: string
+    totalM: number
+    totalF: number
+    presentM: number
+    presentF: number
+    pctM: number
+    pctF: number
+    total: number
+    present: number
+    pct: number
+}
+
+const GRADO_COLORS: Record<string, { bg: string; border: string; badge: string; bar: string }> = {
+    '1°': { bg: 'bg-violet-50', border: 'border-violet-100', badge: 'bg-violet-100 text-violet-700', bar: 'bg-violet-500' },
+    '2°': { bg: 'bg-blue-50', border: 'border-blue-100', badge: 'bg-blue-100 text-blue-700', bar: 'bg-blue-500' },
+    '3°': { bg: 'bg-emerald-50', border: 'border-emerald-100', badge: 'bg-emerald-100 text-emerald-700', bar: 'bg-emerald-500' },
+    '4°': { bg: 'bg-amber-50', border: 'border-amber-100', badge: 'bg-amber-100 text-amber-700', bar: 'bg-amber-500' },
+    '5°': { bg: 'bg-rose-50', border: 'border-rose-100', badge: 'bg-rose-100 text-rose-700', bar: 'bg-rose-500' },
+    '6°': { bg: 'bg-slate-50', border: 'border-slate-200', badge: 'bg-slate-100 text-slate-700', bar: 'bg-slate-500' },
 }
 
 export default function DocenteDashboard() {
     const [docente, setDocente] = useState<Docente | null>(null)
-    const [stats, setStats] = useState<Stats>({ totalStudents: 0, presentToday: 0, absentToday: 0, attendanceRate: 0 })
+    const [gradeStats, setGradeStats] = useState<GradeStats[]>([])
     const [loading, setLoading] = useState(true)
     const today = format(new Date(), "EEEE, d 'de' MMMM yyyy", { locale: es })
 
@@ -35,77 +50,204 @@ export default function DocenteDashboard() {
             if (!doc) return
             setDocente(doc)
 
-            // Load statistics
-            const { data: students } = await supabase
-                .from('estudiantes')
-                .select('id')
-                .eq('docente_id', doc.id)
-
-            const total = students?.length || 0
+            // Determine grados to display (use grados[] if available, fallback to [grado])
+            const grados: string[] = (doc.grados && doc.grados.length > 0)
+                ? doc.grados
+                : doc.grado ? [doc.grado] : []
 
             const todayStr = format(new Date(), 'yyyy-MM-dd')
+
+            // Fetch all students for this teacher
+            const { data: students } = await supabase
+                .from('estudiantes')
+                .select('id, sexo, grado')
+                .eq('docente_id', doc.id)
+
+            if (!students || students.length === 0) {
+                setGradeStats([])
+                setLoading(false)
+                return
+            }
+
+            // Fetch today's attendance
+            const studentIds = students.map(s => s.id)
             const { data: attendance } = await supabase
                 .from('asistencia')
-                .select('presente')
-                .in('estudiante_id', (students || []).map(s => s.id))
+                .select('estudiante_id, presente')
+                .in('estudiante_id', studentIds)
                 .eq('fecha', todayStr)
 
-            const present = (attendance || []).filter(a => a.presente).length
-            const absent = total - present
+            const presentSet = new Set(
+                (attendance || []).filter(a => a.presente).map(a => a.estudiante_id)
+            )
 
-            setStats({
-                totalStudents: total,
-                presentToday: present,
-                absentToday: absent,
-                attendanceRate: total > 0 ? Math.round((present / total) * 100) : 0,
+            // Build stats per grade
+            const statsMap: Record<string, GradeStats> = {}
+            for (const g of grados) {
+                statsMap[g] = { grado: g, totalM: 0, totalF: 0, presentM: 0, presentF: 0, pctM: 0, pctF: 0, total: 0, present: 0, pct: 0 }
+            }
+
+            for (const s of students) {
+                if (!statsMap[s.grado]) continue
+                const isM = s.sexo === 'M'
+                const isF = s.sexo === 'F'
+                const isPresent = presentSet.has(s.id)
+
+                statsMap[s.grado].total++
+                if (isM) {
+                    statsMap[s.grado].totalM++
+                    if (isPresent) statsMap[s.grado].presentM++
+                }
+                if (isF) {
+                    statsMap[s.grado].totalF++
+                    if (isPresent) statsMap[s.grado].presentF++
+                }
+                if (isPresent) statsMap[s.grado].present++
+            }
+
+            // Compute percentages
+            const result = grados.map(g => {
+                const st = statsMap[g]
+                return {
+                    ...st,
+                    pctM: st.totalM > 0 ? Math.round((st.presentM / st.totalM) * 100) : 0,
+                    pctF: st.totalF > 0 ? Math.round((st.presentF / st.totalF) * 100) : 0,
+                    pct: st.total > 0 ? Math.round((st.present / st.total) * 100) : 0,
+                }
             })
+
+            setGradeStats(result)
             setLoading(false)
         }
         load()
     }, [])
 
-    const cards = [
-        { label: 'Total Estudiantes', value: stats.totalStudents, icon: Users, color: 'indigo', bg: 'bg-indigo-50', iconColor: 'text-indigo-600', border: 'border-indigo-100' },
-        { label: 'Presentes Hoy', value: stats.presentToday, icon: CheckCircle, color: 'emerald', bg: 'bg-emerald-50', iconColor: 'text-emerald-600', border: 'border-emerald-100' },
-        { label: 'Ausentes Hoy', value: stats.absentToday, icon: XCircle, color: 'red', bg: 'bg-red-50', iconColor: 'text-red-600', border: 'border-red-100' },
-        { label: 'Tasa de Asistencia', value: `${stats.attendanceRate}%`, icon: TrendingUp, color: 'amber', bg: 'bg-amber-50', iconColor: 'text-amber-600', border: 'border-amber-100' },
-    ]
-
     const saludo = () => {
         if (loading) return 'Cargando...'
-
         if (docente?.sexo === 'F') return `¡Bienvenida, Profesora ${docente?.nombre} ${docente?.apellido}!`
         return `¡Bienvenido, Profesor ${docente?.nombre} ${docente?.apellido}!`
     }
 
+    const grados = docente ? ((docente.grados && docente.grados.length > 0) ? docente.grados : docente.grado ? [docente.grado] : []) : []
+
     return (
-        <div className="max-w-5xl mx-auto space-y-6">
-            {/* Header - saludo */}
+        <div className="max-w-5xl mx-auto space-y-8">
+            {/* Header */}
             <div>
                 <h1 className="text-2xl font-bold text-slate-800">
                     {saludo()}
                 </h1>
                 <p className="text-slate-500 mt-0.5 capitalize">{today}</p>
                 {docente && (
-                    <p className="text-sm text-slate-400 mt-1">
-                        {docente.grado} Grado • Sección {docente.seccion}
-                    </p>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                        {grados.map(g => (
+                            <span key={g} className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${GRADO_COLORS[g]?.badge || 'bg-slate-100 text-slate-700'}`}>
+                                {g} Grado
+                            </span>
+                        ))}
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500">
+                            Sección {docente.seccion}
+                        </span>
+                    </div>
                 )}
             </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {cards.map(card => (
-                    <div key={card.label} className={`${card.bg} ${card.border} border rounded-2xl p-5 flex flex-col gap-3`}>
-                        <div className={`w-10 h-10 rounded-xl bg-white flex items-center justify-center`}>
-                            <card.icon className={`w-5 h-5 ${card.iconColor}`} />
-                        </div>
-                        <div>
-                            <p className="text-2xl font-bold text-slate-800">{loading ? '—' : card.value}</p>
-                            <p className="text-sm text-slate-500">{card.label}</p>
-                        </div>
+            {/* Stats per grade */}
+            <div>
+                <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">Asistencia por Grado — Hoy</h2>
+
+                {loading ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {[1, 2, 3].map(i => (
+                            <div key={i} className="h-52 bg-slate-100 rounded-3xl animate-pulse" />
+                        ))}
                     </div>
-                ))}
+                ) : gradeStats.length === 0 ? (
+                    <div className="bg-slate-50 border border-slate-200 rounded-3xl p-10 text-center">
+                        <Users className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                        <p className="text-slate-500 font-medium">No hay estudiantes registrados aún.</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {gradeStats.map(gs => {
+                            const colors = GRADO_COLORS[gs.grado] || GRADO_COLORS['6°']
+                            return (
+                                <div key={gs.grado} className={`${colors.bg} ${colors.border} border rounded-3xl p-5 flex flex-col gap-4 shadow-sm hover:shadow-md transition-shadow`}>
+                                    {/* Grade header */}
+                                    <div className="flex items-center justify-between">
+                                        <span className={`text-xs font-black px-3 py-1 rounded-full ${colors.badge}`}>
+                                            {gs.grado} GRADO
+                                        </span>
+                                        <span className="text-xs font-semibold text-slate-500">{gs.total} estudiantes</span>
+                                    </div>
+
+                                    {/* Overall attendance */}
+                                    <div className="flex items-end justify-between">
+                                        <div>
+                                            <p className="text-4xl font-black text-slate-800 leading-none">{gs.pct}%</p>
+                                            <p className="text-xs text-slate-500 font-medium mt-1">Asistencia general</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-lg font-black text-slate-700">{gs.present}/{gs.total}</p>
+                                            <p className="text-[10px] text-slate-400 font-medium">presentes</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Overall bar */}
+                                    <div className="w-full bg-white/60 rounded-full h-2 overflow-hidden">
+                                        <div
+                                            className={`h-full ${colors.bar} rounded-full transition-all duration-700`}
+                                            style={{ width: `${gs.pct}%` }}
+                                        />
+                                    </div>
+
+                                    {/* Sex breakdown */}
+                                    <div className="grid grid-cols-2 gap-3 pt-1 border-t border-black/5">
+                                        {/* Masculino */}
+                                        <div className="space-y-1.5">
+                                            <div className="flex items-center gap-1.5">
+                                                <div className="w-5 h-5 rounded-md bg-sky-100 flex items-center justify-center">
+                                                    <span className="text-[9px] font-black text-sky-600">M</span>
+                                                </div>
+                                                <span className="text-[10px] font-semibold text-slate-600">Masculino</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex-1 bg-white/60 rounded-full h-1.5 overflow-hidden">
+                                                    <div
+                                                        className="h-full bg-sky-400 rounded-full transition-all duration-700"
+                                                        style={{ width: `${gs.pctM}%` }}
+                                                    />
+                                                </div>
+                                                <span className="text-xs font-black text-sky-600 w-8 text-right">{gs.pctM}%</span>
+                                            </div>
+                                            <p className="text-[9px] text-slate-400 font-medium">{gs.presentM}/{gs.totalM} presentes</p>
+                                        </div>
+
+                                        {/* Femenino */}
+                                        <div className="space-y-1.5">
+                                            <div className="flex items-center gap-1.5">
+                                                <div className="w-5 h-5 rounded-md bg-rose-100 flex items-center justify-center">
+                                                    <span className="text-[9px] font-black text-rose-600">F</span>
+                                                </div>
+                                                <span className="text-[10px] font-semibold text-slate-600">Femenino</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex-1 bg-white/60 rounded-full h-1.5 overflow-hidden">
+                                                    <div
+                                                        className="h-full bg-rose-400 rounded-full transition-all duration-700"
+                                                        style={{ width: `${gs.pctF}%` }}
+                                                    />
+                                                </div>
+                                                <span className="text-xs font-black text-rose-600 w-8 text-right">{gs.pctF}%</span>
+                                            </div>
+                                            <p className="text-[9px] text-slate-400 font-medium">{gs.presentF}/{gs.totalF} presentes</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+                )}
             </div>
 
             {/* Quick actions */}

@@ -6,7 +6,8 @@ export interface Docente {
     apellido: string
     numero_identidad: string
     sexo: string
-    grado: string
+    grado: string          // legacy – primer grado registrado
+    grados: string[]       // multi-grado
     seccion: string
     auth_user_id: string
     created_at: string

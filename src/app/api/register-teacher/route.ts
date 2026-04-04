@@ -10,10 +10,14 @@ export async function POST(req: NextRequest) {
         )
 
         const body = await req.json()
-        const { nombre, apellido, numero_identidad, sexo, grado, seccion, password } = body
+        const { nombre, apellido, numero_identidad, sexo, grados, seccion, password } = body
 
-        if (!nombre || !apellido || !numero_identidad || !sexo || !grado || !seccion || !password) {
+        if (!nombre || !apellido || !numero_identidad || !sexo || !grados || !seccion || !password) {
             return NextResponse.json({ error: 'Todos los campos son obligatorios' }, { status: 400 })
+        }
+
+        if (!Array.isArray(grados) || grados.length === 0) {
+            return NextResponse.json({ error: 'Debes seleccionar al menos un grado' }, { status: 400 })
         }
 
         const sanitizedDni = numero_identidad.replace(/[-\s]/g, '').trim()
@@ -40,7 +44,7 @@ export async function POST(req: NextRequest) {
 
         const authUserId = authData.user.id
 
-        // 2. Insert into docentes table
+        // 2. Insert into docentes table (grado = primer grado seleccionado, grados = array completo)
         const { error: dbError } = await supabaseAdmin
             .from('docentes')
             .insert({
@@ -48,7 +52,8 @@ export async function POST(req: NextRequest) {
                 apellido,
                 numero_identidad: sanitizedDni,
                 sexo,
-                grado,
+                grado: grados[0],   // campo legacy: primer grado
+                grados,             // array completo de grados
                 seccion,
                 auth_user_id: authUserId
             })

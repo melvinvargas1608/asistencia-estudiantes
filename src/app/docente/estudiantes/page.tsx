@@ -40,6 +40,11 @@ export default function EstudiantesPage() {
     const [search, setSearch] = useState('')
     const [loading, setLoading] = useState(true)
 
+    // Derived: grados permitidos para este docente
+    const gradosPermitidos: string[] = docente
+        ? ((docente.grados && docente.grados.length > 0) ? docente.grados : docente.grado ? [docente.grado] : [])
+        : []
+
     // Modals
     const [showAdd, setShowAdd] = useState(false)
     const [showEdit, setShowEdit] = useState(false)
@@ -172,6 +177,12 @@ export default function EstudiantesPage() {
         setImportLoading(true)
         try {
             const rows = await parseStudentFile(importFile)
+            const grados = (docente.grados && docente.grados.length > 0) ? docente.grados : docente.grado ? [docente.grado] : []
+            const invalid = rows.filter(r => !grados.includes(r.grado))
+            if (invalid.length > 0) {
+                const nombres = invalid.map(r => `${r.nombre} ${r.apellido} (${r.grado})`).join(', ')
+                throw new Error(`Estudiantes con grado no permitido: ${nombres}. Solo puedes importar grados: ${grados.join(', ')}`)
+            }
             for (const row of rows) {
                 const sanitizedDni = row.numero_identidad.replace(/[-\s]/g, '').trim()
                 const email = `${sanitizedDni}@asistencia.edu`
@@ -204,9 +215,18 @@ export default function EstudiantesPage() {
                 <div>
                     <h1 className="text-2xl font-bold text-slate-800">Estudiantes</h1>
                     <p className="text-slate-500 text-sm mt-0.5">
-                        {docente ? `${docente.grado} Grado • Sección ${docente.seccion}` : ''}
+                        {docente ? `Sección ${docente.seccion}` : ''}
                         {!loading && ` • ${students.length} estudiantes`}
                     </p>
+                    {gradosPermitidos.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-1.5">
+                            {gradosPermitidos.map(g => (
+                                <span key={g} className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-600 border border-indigo-100">
+                                    {g} Grado
+                                </span>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap">
@@ -346,7 +366,7 @@ export default function EstudiantesPage() {
                         <Field label="Grado" error={form.formState.errors.grado?.message}>
                             <select {...form.register('grado')} className={selectCls}>
                                 <option value="">—</option>
-                                {GRADOS.map(g => <option key={g} value={g}>{g} Grado</option>)}
+                                {(gradosPermitidos.length > 0 ? gradosPermitidos : GRADOS).map(g => <option key={g} value={g}>{g} Grado</option>)}
                             </select>
                         </Field>
                         <Field label="Sección" error={form.formState.errors.seccion?.message}>
@@ -412,7 +432,7 @@ export default function EstudiantesPage() {
                         <Field label="Grado" error={editForm.formState.errors.grado?.message}>
                             <select {...editForm.register('grado')} className={selectCls}>
                                 <option value="">—</option>
-                                {GRADOS.map(g => <option key={g} value={g}>{g} Grado</option>)}
+                                {(gradosPermitidos.length > 0 ? gradosPermitidos : GRADOS).map(g => <option key={g} value={g}>{g} Grado</option>)}
                             </select>
                         </Field>
                         <Field label="Sección" error={editForm.formState.errors.seccion?.message}>
@@ -503,6 +523,11 @@ export default function EstudiantesPage() {
                     <p className="text-sm text-slate-600">
                         Sube un archivo CSV o Excel con las columnas: <strong>nombre, apellido, numero_identidad, sexo, grado, seccion, jornada</strong>
                     </p>
+                    {gradosPermitidos.length > 0 && (
+                        <div className="bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-3 text-xs text-indigo-700 font-medium">
+                            ℹ️ Solo se aceptarán estudiantes con grado: <strong>{gradosPermitidos.join(', ')}</strong>
+                        </div>
+                    )}
 
                     {importError && (
                         <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-600">
