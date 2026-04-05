@@ -461,6 +461,7 @@ function LoginForm() {
                 </div>
             </div>
 
+             {/*    pie de pagina - CONTROL DE ASISTENCIA ESCOLAR - se comento para que no aparezca en el login
             <div className="mt-8 text-center sm:mx-auto sm:w-full sm:max-w-md">
                 <div className="flex items-center justify-center gap-4 text-slate-400">
                     <div className="p-2 bg-white rounded-lg border border-slate-100">
@@ -469,6 +470,7 @@ function LoginForm() {
                     <span className="text-xs font-bold uppercase tracking-widest">CONTROL DE ASISTENCIA ESCOLAR</span>
                 </div>
             </div>
+            */}
 
             <style jsx global>{`
                 @keyframes shake {
