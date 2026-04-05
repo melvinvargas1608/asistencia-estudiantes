@@ -3,7 +3,7 @@ import { GraduationCap, Users, BookOpen } from 'lucide-react'
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-gradient-to-br from-sky-200 via-sky-300 to-cyan-400 flex flex-col items-center justify-center p-6">
+    <main className="min-h-screen bg-gradient-to-br from-indigo-950 via-indigo-900 to-slate-900 flex flex-col items-center justify-center p-6">
       {/* Background decorations */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl" />
