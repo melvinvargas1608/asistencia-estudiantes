@@ -27,7 +27,9 @@ export async function POST(req: NextRequest) {
 
         const email = `${sanitizedDni}@docente.edu`
 
-        // 1. Create Auth User
+        // 1. Create Auth User (handle orphaned users)
+        let authUserId: string
+
         const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
             email,
             password,
@@ -37,12 +39,42 @@ export async function POST(req: NextRequest) {
 
         if (authError) {
             if (authError.message.includes('already been registered')) {
-                return NextResponse.json({ error: 'Ya existe un docente registrado con ese número de DNI.' }, { status: 400 })
-            }
-            return NextResponse.json({ error: authError.message }, { status: 400 })
-        }
+                // Auth user exists — check if docentes record also exists
+                const { data: existingDocente } = await supabaseAdmin
+                    .from('docentes')
+                    .select('id')
+                    .eq('numero_identidad', sanitizedDni)
+                    .single()
 
-        const authUserId = authData.user.id
+                if (existingDocente) {
+                    // Both exist → genuinely duplicate
+                    return NextResponse.json({ error: 'Ya existe un docente registrado con ese número de DNI.' }, { status: 400 })
+                }
+
+                // Auth user exists but no docente record → orphaned user, delete and recreate
+                const { data: users } = await supabaseAdmin.auth.admin.listUsers()
+                const orphan = users?.users?.find(u => u.email === email)
+                if (orphan) {
+                    await supabaseAdmin.auth.admin.deleteUser(orphan.id)
+                }
+
+                // Recreate auth user
+                const { data: newAuth, error: recreateError } = await supabaseAdmin.auth.admin.createUser({
+                    email,
+                    password,
+                    user_metadata: { role: 'docente', numero_identidad: sanitizedDni },
+                    email_confirm: true,
+                })
+                if (recreateError) {
+                    return NextResponse.json({ error: recreateError.message }, { status: 400 })
+                }
+                authUserId = newAuth.user.id
+            } else {
+                return NextResponse.json({ error: authError.message }, { status: 400 })
+            }
+        } else {
+            authUserId = authData.user.id
+        }
 
         // 2. Insert into docentes table
         const { error: dbError } = await supabaseAdmin
