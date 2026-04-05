@@ -466,7 +466,7 @@ function LoginForm() {
                     <div className="p-2 bg-white rounded-lg border border-slate-100">
                         <School className="w-5 h-5" />
                     </div>
-                    <span className="text-xs font-bold uppercase tracking-widest">Portal Educativo Nacional</span>
+                    <span className="text-xs font-bold uppercase tracking-widest">CONTROL DE ASISTENCIA ESCOLAR</span>
                 </div>
             </div>
 
