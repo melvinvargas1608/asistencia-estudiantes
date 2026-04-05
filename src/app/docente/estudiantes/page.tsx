@@ -41,9 +41,7 @@ export default function EstudiantesPage() {
     const [loading, setLoading] = useState(true)
 
     // Derived: grados permitidos para este docente
-    const gradosPermitidos: string[] = docente
-        ? ((docente.grados && docente.grados.length > 0) ? docente.grados : docente.grado ? [docente.grado] : [])
-        : []
+    const gradosPermitidos: string[] = docente?.grados ?? []
 
     // Modals
     const [showAdd, setShowAdd] = useState(false)
@@ -177,7 +175,7 @@ export default function EstudiantesPage() {
         setImportLoading(true)
         try {
             const rows = await parseStudentFile(importFile)
-            const grados = (docente.grados && docente.grados.length > 0) ? docente.grados : docente.grado ? [docente.grado] : []
+            const grados = docente.grados ?? []
             const invalid = rows.filter(r => !grados.includes(r.grado))
             if (invalid.length > 0) {
                 const nombres = invalid.map(r => `${r.nombre} ${r.apellido} (${r.grado})`).join(', ')

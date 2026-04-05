@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
 
         const authUserId = authData.user.id
 
-        // 2. Insert into docentes table (grado = primer grado seleccionado, grados = array completo)
+        // 2. Insert into docentes table
         const { error: dbError } = await supabaseAdmin
             .from('docentes')
             .insert({
@@ -52,11 +52,11 @@ export async function POST(req: NextRequest) {
                 apellido,
                 numero_identidad: sanitizedDni,
                 sexo,
-                grado: grados[0],   // campo legacy: primer grado
-                grados,             // array completo de grados
+                grados,
                 seccion,
                 auth_user_id: authUserId
             })
+
 
         if (dbError) {
             // Rollback auth user if DB insert fails

@@ -50,10 +50,8 @@ export default function DocenteDashboard() {
             if (!doc) return
             setDocente(doc)
 
-            // Determine grados to display (use grados[] if available, fallback to [grado])
-            const grados: string[] = (doc.grados && doc.grados.length > 0)
-                ? doc.grados
-                : doc.grado ? [doc.grado] : []
+            // Determine grados to display
+            const grados: string[] = doc.grados ?? []
 
             const todayStr = format(new Date(), 'yyyy-MM-dd')
 
@@ -128,7 +126,8 @@ export default function DocenteDashboard() {
         return `¡Bienvenido, Profesor ${docente?.nombre} ${docente?.apellido}!`
     }
 
-    const grados = docente ? ((docente.grados && docente.grados.length > 0) ? docente.grados : docente.grado ? [docente.grado] : []) : []
+    const grados = docente?.grados ?? []
+
 
     return (
         <div className="max-w-5xl mx-auto space-y-8">
