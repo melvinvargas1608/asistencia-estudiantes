@@ -33,7 +33,10 @@ export default function DocenteDashboard() {
     const [docente, setDocente] = useState<Docente | null>(null)
     const [gradeStats, setGradeStats] = useState<GradeStats[]>([])
     const [loading, setLoading] = useState(true)
-    const today = format(new Date(), "EEEE, d 'de' MMMM yyyy", { locale: es })
+    const now = new Date()
+    const today = format(now, "EEEE, d 'de' MMMM yyyy", { locale: es })
+    const dayOfWeek = now.getDay()
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
 
     useEffect(() => {
         const supabase = createClient()
@@ -53,7 +56,12 @@ export default function DocenteDashboard() {
             // Determine grados to display
             const grados: string[] = doc.grados ?? []
 
-            const todayStr = format(new Date(), 'yyyy-MM-dd')
+            if (isWeekend) {
+                setLoading(false)
+                return
+            }
+
+            const todayStr = format(now, 'yyyy-MM-dd')
 
             // Fetch all students for this teacher
             const { data: students } = await supabase
@@ -160,6 +168,16 @@ export default function DocenteDashboard() {
                         {[1, 2, 3].map(i => (
                             <div key={i} className="h-52 bg-slate-100 rounded-3xl animate-pulse" />
                         ))}
+                    </div>
+                ) : isWeekend ? (
+                    <div className="bg-white border border-slate-200 rounded-3xl p-10 text-center shadow-sm">
+                        <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                            <span className="text-3xl">☕</span>
+                        </div>
+                        <h3 className="text-lg font-bold text-slate-800">Día de Descanso</h3>
+                        <p className="text-slate-500 mt-1 max-w-sm mx-auto">
+                            Hoy es fin de semana. No se registran asistencias ni inasistencias en días no lectivos.
+                        </p>
                     </div>
                 ) : gradeStats.length === 0 ? (
                     <div className="bg-slate-50 border border-slate-200 rounded-3xl p-10 text-center">
