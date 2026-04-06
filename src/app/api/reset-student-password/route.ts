@@ -20,6 +20,10 @@ export async function POST(req: NextRequest) {
         }
 
         // Reset password to the finalPassword
+        if (finalPassword.length !== 6) {
+            return NextResponse.json({ error: 'La contraseña debe tener exactamente 6 caracteres.' }, { status: 400 })
+        }
+
         const { error: resetError } = await supabaseAdmin.auth.admin.updateUserById(
             auth_user_id,
             { password: finalPassword }

@@ -173,8 +173,9 @@ export default function EstudiantesPage() {
     // ── Reset Password ───────────────────────────────────────────────────────
     const [resetLoading, setResetLoading] = useState(false)
     async function handleResetPassword() {
-        if (!selected || !docente || !newPassword.trim()) {
-            if (!newPassword.trim()) alert('Por favor, ingresa una nueva contraseña.')
+        const trimmedPwd = newPassword.trim()
+        if (!selected || !docente || trimmedPwd.length !== 6) {
+            if (trimmedPwd.length !== 6) alert('La contraseña debe tener exactamente 6 caracteres.')
             return
         }
         setResetLoading(true)
@@ -651,7 +652,8 @@ export default function EstudiantesPage() {
                             type="text"
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
-                            placeholder="Ej: Estudiante2024*"
+                            placeholder="••••••"
+                            maxLength={6}
                             className={inputCls}
                             autoFocus
                         />
@@ -665,7 +667,7 @@ export default function EstudiantesPage() {
                             className="flex-1"
                             loading={resetLoading}
                             onClick={handleResetPassword}
-                            disabled={!newPassword.trim()}
+                            disabled={newPassword.trim().length !== 6}
                         >
                             Actualizar
                         </Button>
