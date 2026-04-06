@@ -9,7 +9,7 @@ import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import {
     Search, Plus, Upload, Pencil, Trash2, QrCode, X,
-    AlertTriangle, Download, ChevronDown
+    AlertTriangle, Download, ChevronDown, Lock
 } from 'lucide-react'
 import type { Docente, Estudiante } from '@/lib/types'
 import { GRADOS, JORNADAS, SECCIONES } from '@/lib/types'
@@ -49,6 +49,7 @@ export default function EstudiantesPage() {
     const [showDelete, setShowDelete] = useState(false)
     const [showQR, setShowQR] = useState(false)
     const [showImport, setShowImport] = useState(false)
+    const [showReset, setShowReset] = useState(false)
     const [selected, setSelected] = useState<Estudiante | null>(null)
 
     // Import
@@ -166,6 +167,33 @@ export default function EstudiantesPage() {
         setShowDelete(false)
         setSelected(null)
         await fetchStudents(docente.id)
+    }
+
+    // ── Reset Password ───────────────────────────────────────────────────────
+    const [resetLoading, setResetLoading] = useState(false)
+    async function handleResetPassword() {
+        if (!selected || !docente) return
+        setResetLoading(true)
+        try {
+            const res = await fetch('/api/reset-student-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    auth_user_id: selected.auth_user_id, 
+                    numero_identidad: selected.numero_identidad 
+                }),
+            })
+            if (!res.ok) {
+                const err = await res.json()
+                throw new Error(err.error || 'Error al restablecer contraseña')
+            }
+            setShowReset(false)
+            alert('Contraseña restablecida al DNI correctamente.')
+        } catch (err: any) {
+            alert(err.message)
+        } finally {
+            setResetLoading(false)
+        }
     }
 
     // ── Import ───────────────────────────────────────────────────────────────
@@ -316,6 +344,14 @@ export default function EstudiantesPage() {
                                                     className="p-1.5 rounded-lg text-amber-500 hover:bg-amber-50 transition-colors"
                                                 >
                                                     <Pencil className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => { setSelected(s); setShowReset(true) }}
+                                                    title="Restablecer Contraseña"
+                                                    disabled={!s.auth_user_id}
+                                                    className={`p-1.5 rounded-lg transition-colors ${!s.auth_user_id ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:bg-slate-100'}`}
+                                                >
+                                                    <Lock className="w-4 h-4" />
                                                 </button>
                                                 <button
                                                     onClick={() => { setSelected(s); setShowDelete(true) }}
@@ -574,6 +610,33 @@ export default function EstudiantesPage() {
                         </Button>
                         <Button className="flex-1" loading={importLoading} onClick={handleImport} disabled={!importFile}>
                             Importar
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* ── Reset Password Modal ─────────────────────────────────────────── */}
+            <Modal isOpen={showReset} onClose={() => setShowReset(false)} title="Restablecer Contraseña" size="sm">
+                <div className="space-y-4">
+                    <div className="flex gap-3 items-start">
+                        <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
+                            <Lock className="w-5 h-5 text-slate-600" />
+                        </div>
+                        <div>
+                            <p className="font-medium text-slate-800">
+                                ¿Restablecer contraseña de {selected?.nombre}?
+                            </p>
+                            <p className="text-sm text-slate-500 mt-1">
+                                La contraseña actual (creada por el usuario) se borrará y deberá usar su **DNI** para volver a ingresar.
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex gap-3">
+                        <Button variant="secondary" className="flex-1" onClick={() => setShowReset(false)}>
+                            Cancelar
+                        </Button>
+                        <Button className="flex-1" loading={resetLoading} onClick={handleResetPassword}>
+                            Restablecer
                         </Button>
                     </div>
                 </div>
