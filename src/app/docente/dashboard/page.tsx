@@ -222,26 +222,6 @@ export default function DocenteDashboard() {
 
                                     {/* Sex breakdown */}
                                     <div className="grid grid-cols-2 gap-3 pt-1 border-t border-black/5">
-                                        {/* Masculino */}
-                                        <div className="space-y-1.5">
-                                            <div className="flex items-center gap-1.5">
-                                                <div className="w-5 h-5 rounded-md bg-sky-100 flex items-center justify-center">
-                                                    <span className="text-[9px] font-black text-sky-600">M</span>
-                                                </div>
-                                                <span className="text-[10px] font-semibold text-slate-600">Masculino</span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <div className="flex-1 bg-white/60 rounded-full h-1.5 overflow-hidden">
-                                                    <div
-                                                        className="h-full bg-sky-400 rounded-full transition-all duration-700"
-                                                        style={{ width: `${gs.pctM}%` }}
-                                                    />
-                                                </div>
-                                                <span className="text-xs font-black text-sky-600 w-8 text-right">{gs.pctM}%</span>
-                                            </div>
-                                            <p className="text-[9px] text-slate-400 font-medium">{gs.presentM}/{gs.totalM} presentes</p>
-                                        </div>
-
                                         {/* Femenino */}
                                         <div className="space-y-1.5">
                                             <div className="flex items-center gap-1.5">
@@ -260,6 +240,25 @@ export default function DocenteDashboard() {
                                                 <span className="text-xs font-black text-rose-600 w-8 text-right">{gs.pctF}%</span>
                                             </div>
                                             <p className="text-[9px] text-slate-400 font-medium">{gs.presentF}/{gs.totalF} presentes</p>
+                                        </div>
+                                        {/* Masculino */}
+                                        <div className="space-y-1.5">
+                                            <div className="flex items-center gap-1.5">
+                                                <div className="w-5 h-5 rounded-md bg-sky-100 flex items-center justify-center">
+                                                    <span className="text-[9px] font-black text-sky-600">M</span>
+                                                </div>
+                                                <span className="text-[10px] font-semibold text-slate-600">Masculino</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex-1 bg-white/60 rounded-full h-1.5 overflow-hidden">
+                                                    <div
+                                                        className="h-full bg-sky-400 rounded-full transition-all duration-700"
+                                                        style={{ width: `${gs.pctM}%` }}
+                                                    />
+                                                </div>
+                                                <span className="text-xs font-black text-sky-600 w-8 text-right">{gs.pctM}%</span>
+                                            </div>
+                                            <p className="text-[9px] text-slate-400 font-medium">{gs.presentM}/{gs.totalM} presentes</p>
                                         </div>
                                     </div>
                                 </div>
