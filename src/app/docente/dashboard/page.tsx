@@ -95,8 +95,9 @@ export default function DocenteDashboard() {
 
             for (const s of students) {
                 if (!statsMap[s.grado]) continue
-                const isM = s.sexo === 'M'
-                const isF = s.sexo === 'F'
+                const sexo = (s.sexo || '').toLowerCase().trim()
+                const isM = ['m', 'masculino', 'hombre', 'male', 'h'].includes(sexo)
+                const isF = ['f', 'femenino', 'mujer', 'female'].includes(sexo)
                 const isPresent = presentSet.has(s.id)
 
                 statsMap[s.grado].total++
@@ -104,10 +105,11 @@ export default function DocenteDashboard() {
                     statsMap[s.grado].totalM++
                     if (isPresent) statsMap[s.grado].presentM++
                 }
-                if (isF) {
+                else if (isF) {
                     statsMap[s.grado].totalF++
                     if (isPresent) statsMap[s.grado].presentF++
                 }
+                
                 if (isPresent) statsMap[s.grado].present++
             }
 

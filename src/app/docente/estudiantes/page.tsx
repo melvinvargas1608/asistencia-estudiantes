@@ -288,7 +288,14 @@ export default function EstudiantesPage() {
                                         <td className="px-4 py-3 font-medium text-slate-800">{s.nombre}</td>
                                         <td className="px-4 py-3 text-slate-600">{s.apellido}</td>
                                         <td className="px-4 py-3 font-mono text-slate-500 text-xs">{s.numero_identidad}</td>
-                                        <td className="px-4 py-3 text-slate-600">{s.sexo === 'M' ? 'Masculino' : s.sexo === 'F' ? 'Femenino' : s.sexo}</td>
+                                        <td className="px-4 py-3 text-slate-600">
+                                            {(() => {
+                                                const low = (s.sexo || '').toLowerCase().trim()
+                                                if (['m', 'masculino', 'hombre', 'male', 'h'].includes(low)) return 'Masculino'
+                                                if (['f', 'femenino', 'mujer', 'female'].includes(low)) return 'Femenino'
+                                                return s.sexo
+                                            })()}
+                                        </td>
                                         <td className="px-4 py-3">
                                             <Badge variant={gradoColor[s.grado] as any || 'gray'}>{s.grado}</Badge>
                                         </td>

@@ -30,11 +30,18 @@ export async function parseStudentFile(file: File): Promise<ImportedStudent[]> {
             return ''
         }
 
+        const normalizeSexo = (val: string): string => {
+            const low = val.toLowerCase().trim()
+            if (['m', 'masculino', 'hombre', 'male', 'h'].includes(low)) return 'M'
+            if (['f', 'femenino', 'mujer', 'female'].includes(low)) return 'F'
+            return val.toUpperCase() // Fallback
+        }
+
         const student: ImportedStudent = {
             nombre: get(['nombre', 'first_name', 'firstname']),
             apellido: get(['apellido', 'apellidos', 'last_name', 'lastname']),
             numero_identidad: get(['numero_identidad', 'dni', 'identidad', 'cedula', 'id']),
-            sexo: get(['sexo', 'genero', 'gender']),
+            sexo: normalizeSexo(get(['sexo', 'genero', 'gender'])),
             grado: get(['grado', 'grade']),
             seccion: get(['seccion', 'sección', 'section']),
             jornada: get(['jornada', 'turno', 'shift']),
