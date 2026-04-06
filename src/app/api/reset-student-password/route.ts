@@ -10,16 +10,19 @@ export async function POST(req: NextRequest) {
         )
 
         const body = await req.json()
-        const { student_id, auth_user_id, numero_identidad } = body
+        const { auth_user_id, numero_identidad, password } = body
 
-        if (!auth_user_id || !numero_identidad) {
-            return NextResponse.json({ error: 'Faltan datos requeridos (auth_id, DNI)' }, { status: 400 })
+        // Use 'password' if provided, otherwise 'numero_identidad' (DNI)
+        const finalPassword = password || numero_identidad
+
+        if (!auth_user_id || !finalPassword) {
+            return NextResponse.json({ error: 'Faltan datos requeridos (auth_id, contraseña o DNI)' }, { status: 400 })
         }
 
-        // Reset password to their DNI
+        // Reset password to the finalPassword
         const { error: resetError } = await supabaseAdmin.auth.admin.updateUserById(
             auth_user_id,
-            { password: numero_identidad }
+            { password: finalPassword }
         )
 
         if (resetError) {

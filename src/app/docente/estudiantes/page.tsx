@@ -51,6 +51,7 @@ export default function EstudiantesPage() {
     const [showImport, setShowImport] = useState(false)
     const [showReset, setShowReset] = useState(false)
     const [selected, setSelected] = useState<Estudiante | null>(null)
+    const [newPassword, setNewPassword] = useState('')
 
     // Import
     const [importFile, setImportFile] = useState<File | null>(null)
@@ -172,15 +173,19 @@ export default function EstudiantesPage() {
     // ── Reset Password ───────────────────────────────────────────────────────
     const [resetLoading, setResetLoading] = useState(false)
     async function handleResetPassword() {
-        if (!selected || !docente) return
+        if (!selected || !docente || !newPassword.trim()) {
+            if (!newPassword.trim()) alert('Por favor, ingresa una nueva contraseña.')
+            return
+        }
         setResetLoading(true)
         try {
             const res = await fetch('/api/reset-student-password', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    auth_user_id: selected.auth_user_id, 
-                    numero_identidad: selected.numero_identidad 
+                body: JSON.stringify({
+                    auth_user_id: selected.auth_user_id,
+                    numero_identidad: selected.numero_identidad,
+                    password: newPassword.trim()
                 }),
             })
             if (!res.ok) {
@@ -188,7 +193,8 @@ export default function EstudiantesPage() {
                 throw new Error(err.error || 'Error al restablecer contraseña')
             }
             setShowReset(false)
-            alert('Contraseña restablecida al DNI correctamente.')
+            setNewPassword('')
+            alert('Contraseña actualizada correctamente.')
         } catch (err: any) {
             alert(err.message)
         } finally {
@@ -616,27 +622,52 @@ export default function EstudiantesPage() {
             </Modal>
 
             {/* ── Reset Password Modal ─────────────────────────────────────────── */}
-            <Modal isOpen={showReset} onClose={() => setShowReset(false)} title="Restablecer Contraseña" size="sm">
+            <Modal
+                isOpen={showReset}
+                onClose={() => { setShowReset(false); setNewPassword('') }}
+                title="Establecer Nueva Contraseña"
+                size="sm"
+            >
                 <div className="space-y-4">
                     <div className="flex gap-3 items-start">
-                        <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
-                            <Lock className="w-5 h-5 text-slate-600" />
+                        <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0">
+                            <Lock className="w-5 h-5 text-indigo-600" />
                         </div>
                         <div>
                             <p className="font-medium text-slate-800">
-                                ¿Restablecer contraseña de {selected?.nombre}?
+                                Nueva clave para {selected?.nombre}
                             </p>
                             <p className="text-sm text-slate-500 mt-1">
-                                La contraseña actual (creada por el usuario) se borrará y deberá usar su **DNI** para volver a ingresar.
+                                Escribe la nueva contraseña que usará el estudiante para ingresar.
                             </p>
                         </div>
                     </div>
-                    <div className="flex gap-3">
-                        <Button variant="secondary" className="flex-1" onClick={() => setShowReset(false)}>
+
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider ml-1">
+                            Nueva Contraseña
+                        </label>
+                        <input
+                            type="text"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            placeholder="Ej: Estudiante2024*"
+                            className={inputCls}
+                            autoFocus
+                        />
+                    </div>
+
+                    <div className="flex gap-3 pt-2">
+                        <Button variant="secondary" className="flex-1" onClick={() => { setShowReset(false); setNewPassword('') }}>
                             Cancelar
                         </Button>
-                        <Button className="flex-1" loading={resetLoading} onClick={handleResetPassword}>
-                            Restablecer
+                        <Button
+                            className="flex-1"
+                            loading={resetLoading}
+                            onClick={handleResetPassword}
+                            disabled={!newPassword.trim()}
+                        >
+                            Actualizar
                         </Button>
                     </div>
                 </div>
