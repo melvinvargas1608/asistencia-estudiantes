@@ -39,7 +39,7 @@ export default function ReportesPage() {
         // Get all students of this teacher
         let studentQuery = supabase
             .from('estudiantes')
-            .select('id, nombre, apellido, numero_identidad, grado, seccion, jornada')
+            .select('id, nombre, apellido, numero_identidad, sexo, grado, seccion, jornada')
             .eq('docente_id', docente.id)
 
         if (grado) studentQuery = studentQuery.eq('grado', grado)
@@ -85,6 +85,7 @@ export default function ReportesPage() {
                     nombre: s.nombre,
                     apellido: s.apellido,
                     numero_identidad: s.numero_identidad,
+                    sexo: s.sexo,
                     grado: s.grado,
                     seccion: s.seccion,
                     jornada: s.jornada,
@@ -236,7 +237,7 @@ export default function ReportesPage() {
                         <table className="w-full text-sm">
                             <thead>
                                 <tr className="bg-slate-50 border-b border-slate-100">
-                                    {['Fecha', 'Nombre', 'Apellido', 'DNI', 'Grado', 'Sección', 'Jornada', 'Asistencia', 'Docente'].map(h => (
+                                    {['Fecha', 'Nombre', 'Apellido', 'Sexo', 'DNI', 'Grado', 'Sección', 'Jornada', 'Asistencia', 'Docente'].map(h => (
                                         <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">
                                             {h}
                                         </th>
@@ -252,6 +253,14 @@ export default function ReportesPage() {
                                             <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{r.fecha}</td>
                                             <td className="px-4 py-3 font-medium text-slate-800">{r.nombre}</td>
                                             <td className="px-4 py-3 text-slate-600">{r.apellido}</td>
+                                            <td className="px-4 py-3 text-slate-600 text-xs">
+                                                {(() => {
+                                                    const low = (r.sexo || '').toLowerCase().trim()
+                                                    if (['m', 'masculino', 'hombre', 'male', 'h'].includes(low)) return 'Masculino'
+                                                    if (['f', 'femenino', 'mujer', 'female'].includes(low)) return 'Femenino'
+                                                    return r.sexo
+                                                })()}
+                                            </td>
                                             <td className="px-4 py-3 font-mono text-xs text-slate-500">{r.numero_identidad}</td>
                                             <td className="px-4 py-3"><Badge variant="gray">{r.grado}</Badge></td>
                                             <td className="px-4 py-3 text-slate-600">{r.seccion}</td>

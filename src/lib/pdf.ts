@@ -30,12 +30,17 @@ export function exportAttendancePDF(
     // Table
     autoTable(doc, {
         startY: 38,
-        head: [['Fecha', 'ID', 'Nombre', 'Apellido', 'DNI', 'Grado', 'Sección', 'Jornada', 'Asistencia', 'Docente']],
+        head: [['Fecha', 'Nombre', 'Apellido', 'Sexo', 'DNI', 'Grado', 'Sección', 'Jornada', 'Asistencia', 'Docente']],
         body: records.map(r => [
             r.fecha,
-            r.estudiante_id.slice(0, 8),
             r.nombre,
             r.apellido,
+            (() => {
+                const low = (r.sexo || '').toLowerCase().trim()
+                if (['m', 'masculino', 'hombre', 'male', 'h'].includes(low)) return 'Masculino'
+                if (['f', 'femenino', 'mujer', 'female'].includes(low)) return 'Femenino'
+                return r.sexo
+            })(),
             r.numero_identidad,
             r.grado,
             r.seccion,

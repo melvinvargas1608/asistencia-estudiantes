@@ -55,6 +55,7 @@ export interface AttendanceReport {
     nombre: string
     apellido: string
     numero_identidad: string
+    sexo: string
     grado: string
     seccion: string
     jornada: string
