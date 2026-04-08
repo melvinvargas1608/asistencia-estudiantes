@@ -6,7 +6,8 @@ import { Users, QrCode, FileText } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import Badge from '@/components/ui/Badge'
-import type { Docente } from '@/lib/types'
+import { Ban, AlertTriangle } from 'lucide-react'
+import type { Docente, Suspension } from '@/lib/types'
 
 interface GradeStats {
     grado: string
@@ -37,6 +38,7 @@ export default function DocenteDashboard() {
     const [docente, setDocente] = useState<Docente | null>(null)
     const [gradeStats, setGradeStats] = useState<GradeStats[]>([])
     const [loading, setLoading] = useState(true)
+    const [todaySuspension, setTodaySuspension] = useState<Suspension | null>(null)
 
     useEffect(() => {
         const supabase = createClient()
@@ -76,6 +78,15 @@ export default function DocenteDashboard() {
                 setLoading(false)
                 return
             }
+
+            // Check for suspension
+            const { data: suspension } = await supabase
+                .from('suspensiones')
+                .select('*')
+                .eq('fecha', todayStr)
+                .single()
+
+            setTodaySuspension(suspension)
 
             // Fetch today's attendance
             const studentIds = students.map(s => s.id)
@@ -200,6 +211,23 @@ export default function DocenteDashboard() {
                         <p className="text-slate-500 mt-1 max-w-sm mx-auto">
                             Hoy es fin de semana. No se registran asistencias ni inasistencias en días no lectivos.
                         </p>
+                    </div>
+                ) : todaySuspension ? (
+                    <div className="bg-white border-2 border-amber-100 rounded-3xl p-10 text-center shadow-lg animate-in zoom-in-95">
+                        <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-amber-100 uppercase">
+                            <AlertTriangle className="w-8 h-8 text-amber-500" />
+                        </div>
+                        <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight italic">Clases Suspendidas Hoy</h3>
+                        <div className="mt-4 px-6 py-4 bg-amber-50/50 rounded-2xl border border-amber-100 inline-block">
+                            <p className="text-amber-800 font-bold text-sm">Motivo: {todaySuspension.motivo}</p>
+                        </div>
+                        <p className="text-slate-500 mt-4 max-w-sm mx-auto text-sm">
+                            Las actividades académicas han sido suspendidas. Los registros de este día no afectarán el porcentaje de asistencia de los estudiantes.
+                        </p>
+                        <a href="/docente/asistencia" className="inline-flex items-center gap-2 mt-6 text-xs font-black text-amber-600 hover:text-amber-700 transition-colors uppercase tracking-widest">
+                            <Ban className="w-3 h-3" />
+                            Gestionar Suspensión
+                        </a>
                     </div>
                 ) : gradeStats.length === 0 ? (
                     <div className="bg-slate-50 border border-slate-200 rounded-3xl p-10 text-center">

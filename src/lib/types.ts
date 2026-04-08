@@ -64,6 +64,13 @@ export interface AttendanceReport {
     docente_nombre: string
 }
 
+export interface Suspension {
+    id: string
+    docente_id: string
+    fecha: string
+    motivo: string
+}
+
 export const GRADOS = ['1°', '2°', '3°', '4°', '5°', '6°'] as const
 export const SECCIONES = ['A', 'B', 'C', 'D', 'E'] as const
 export const JORNADAS = ['Matutina', 'Vespertina', 'Nocturna'] as const

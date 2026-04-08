@@ -3,12 +3,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { parseQRPayload } from '@/lib/qr'
-import { QrCode, CheckCircle2, XCircle, RefreshCw, Camera, Users, ListFilter, UserCheck, UserMinus, FileText } from 'lucide-react'
+import { QrCode, CheckCircle2, XCircle, RefreshCw, Camera, Users, ListFilter, UserCheck, UserMinus, FileText, Ban, AlertTriangle } from 'lucide-react'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import type { Estudiante, Justificacion } from '@/lib/types'
+import type { Estudiante, Justificacion, Suspension } from '@/lib/types'
 
 type ScanResult = {
     student: Estudiante
@@ -36,6 +36,8 @@ export default function AsistenciaPage() {
     const [todayAttendance, setTodayAttendance] = useState<Record<string, boolean>>({})
     const [todayJustifs, setTodayJustifs] = useState<Record<string, 'permiso' | 'excusa'>>({})
     const [loadingSummary, setLoadingSummary] = useState(false)
+    const [todaySuspension, setTodaySuspension] = useState<Suspension | null>(null)
+    const [isSuspending, setIsSuspending] = useState(false)
 
     const today = format(new Date(), "EEEE, d 'de' MMMM yyyy", { locale: es })
     const todayStr = format(new Date(), 'yyyy-MM-dd')
@@ -95,7 +97,54 @@ export default function AsistenciaPage() {
         justifs?.forEach(j => { justifsMap[j.estudiante_id] = j.tipo as 'permiso' | 'excusa' })
         setTodayJustifs(justifsMap)
 
+        const { data: suspension } = await supabase
+            .from('suspensiones')
+            .select('*')
+            .eq('fecha', todayStr)
+            .single()
+
+        setTodaySuspension(suspension)
         setLoadingSummary(false)
+    }
+
+    async function handleSuspend() {
+        if (!docenteId) return
+        const motivo = window.prompt('Motivo de la suspensión (reunión, enfermedad, etc.):')
+        if (!motivo) return
+
+        setIsSuspending(true)
+        const supabase = createClient()
+        const { data, error } = await supabase
+            .from('suspensiones')
+            .insert({
+                docente_id: docenteId,
+                fecha: todayStr,
+                motivo
+            })
+            .select()
+            .single()
+
+        if (!error && data) {
+            setTodaySuspension(data)
+        }
+        setIsSuspending(false)
+    }
+
+    async function handleReactivate() {
+        if (!docenteId || !todaySuspension) return
+        if (!window.confirm('¿Estás seguro de reactivar las clases para hoy?')) return
+
+        setIsSuspending(true)
+        const supabase = createClient()
+        const { error } = await supabase
+            .from('suspensiones')
+            .delete()
+            .eq('id', todaySuspension.id)
+
+        if (!error) {
+            setTodaySuspension(null)
+        }
+        setIsSuspending(false)
     }
 
     async function setStudentStatus(student: Estudiante, status: 'presente' | 'ausente' | 'permiso' | 'excusa') {
@@ -250,6 +299,16 @@ export default function AsistenciaPage() {
                     <h1 className="text-2xl font-black text-slate-800 tracking-tight">Registro de Asistencia</h1>
                     <p className="text-slate-500 text-sm mt-0.5 font-medium capitalize">{today}</p>
                 </div>
+                {!isWeekend && !todaySuspension && (
+                    <button
+                        onClick={handleSuspend}
+                        disabled={isSuspending}
+                        className="flex items-center gap-2 px-3 py-1.5 text-[10px] font-black text-red-500 bg-red-50 border border-red-100 rounded-xl hover:bg-red-100 transition-all uppercase"
+                    >
+                        <Ban className="w-3 h-3" />
+                        Suspender Clases
+                    </button>
+                )}
             </div>
 
             {isWeekend ? (
@@ -275,6 +334,32 @@ export default function AsistenciaPage() {
                                 <span key={d} className="px-3 py-1.5 bg-red-50 text-red-400 text-xs font-bold rounded-lg border border-red-100 line-through">{d}</span>
                             ))}
                         </div>
+                    </div>
+                </div>
+            ) : todaySuspension ? (
+                /* ── SUSPENSION BLOCK ───────────────────────────────────── */
+                <div className="mx-4 sm:mx-0 bg-white sm:rounded-3xl border-2 border-amber-100 shadow-xl overflow-hidden animate-in zoom-in-95 duration-300">
+                    <div className="flex flex-col items-center justify-center py-20 px-8 text-center gap-6">
+                        <div className="w-20 h-20 rounded-3xl bg-amber-50 border-2 border-amber-100 flex items-center justify-center text-amber-500">
+                            <AlertTriangle className="w-10 h-10" />
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-black text-slate-800 mb-2 uppercase tracking-tight italic">Clases Suspendidas</h2>
+                            <div className="px-6 py-4 bg-amber-50 rounded-2xl border border-amber-100 mb-4">
+                                <p className="text-amber-800 font-bold text-sm">Motivo: {todaySuspension.motivo}</p>
+                            </div>
+                            <p className="text-slate-500 font-medium max-w-sm mx-auto text-sm">
+                                Los registros de asistencia están deshabilitados. Este día no afectará el récord de los estudiantes.
+                            </p>
+                        </div>
+                        <Button
+                            variant="primary"
+                            className="bg-slate-800 hover:bg-slate-900 !rounded-2xl px-8"
+                            onClick={handleReactivate}
+                            disabled={isSuspending}
+                        >
+                            Reactivar Clases para Hoy
+                        </Button>
                     </div>
                 </div>
             ) : (

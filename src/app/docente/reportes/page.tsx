@@ -6,7 +6,7 @@ import { exportAttendancePDF } from '@/lib/pdf'
 import { FileText, Download, Filter } from 'lucide-react'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
-import { GRADOS, SECCIONES, type AttendanceReport, type Docente } from '@/lib/types'
+import { GRADOS, SECCIONES, type AttendanceReport, type Docente, type Suspension } from '@/lib/types'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
@@ -20,6 +20,7 @@ export default function ReportesPage() {
     const [fechaFin, setFechaFin] = useState(format(new Date(), 'yyyy-MM-dd'))
     const [grado, setGrado] = useState('')
     const [seccion, setSeccion] = useState('')
+    const [suspensions, setSuspensions] = useState<Suspension[]>([])
 
     useEffect(() => {
         const supabase = createClient()
@@ -70,6 +71,13 @@ export default function ReportesPage() {
             .gte('fecha', fechaInicio)
             .lte('fecha', fechaFin)
 
+        const { data: suspensions } = await supabase
+            .from('suspensiones')
+            .select('*')
+            .eq('docente_id', docente.id)
+            .gte('fecha', fechaInicio)
+            .lte('fecha', fechaFin)
+
         const docenteName = `${docente.nombre} ${docente.apellido}`
 
         // Group by date to ensure we show all students for each date that has records
@@ -84,6 +92,7 @@ export default function ReportesPage() {
         }
 
         datesWithRecords.forEach(date => {
+            const suspension = suspensions?.find(s => s.fecha === date)
             students.forEach(s => {
                 const record = attendance?.find(a => a.estudiante_id === s.id && a.fecha === date)
                 const justif = justifs?.find(j => j.estudiante_id === s.id && j.fecha === date)
@@ -98,7 +107,7 @@ export default function ReportesPage() {
                     seccion: s.seccion,
                     jornada: s.jornada,
                     presente: record ? record.presente : false,
-                    justificacion: justif ? (justif.tipo as 'permiso' | 'excusa') : undefined,
+                    justificacion: justif ? (justif.tipo as 'permiso' | 'excusa') : (suspension ? 'excusa' : undefined), // Treat suspension as a form of justification for stats
                     docente_nombre: docenteName,
                 })
             })
@@ -111,6 +120,7 @@ export default function ReportesPage() {
         })
 
         setRecords(report)
+        setSuspensions(suspensions || [])
         setLoading(false)
         setFetched(true)
     }
@@ -277,19 +287,22 @@ export default function ReportesPage() {
                                             <td className="px-4 py-3 text-slate-600">{r.seccion}</td>
                                             <td className="px-4 py-3 text-slate-600">{r.jornada}</td>
                                             <td className="px-4 py-3">
-                                                {r.justificacion ? (
-                                                    <Badge variant="blue">{r.justificacion.toUpperCase()}</Badge>
-                                                ) : (
-                                                    <button
-                                                        onClick={() => toggleAttendance(r)}
-                                                        className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all active:scale-95 border-2 ${r.presente
-                                                            ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-100'
-                                                            : 'bg-white border-red-100 text-red-500 hover:border-red-500'
-                                                            }`}
-                                                    >
-                                                        {r.presente ? 'PRESENTE' : 'AUSENTE'}
-                                                    </button>
-                                                )}
+                                                {(() => {
+                                                    const suspension = suspensions?.find(sus => sus.fecha === r.fecha)
+                                                    if (suspension) return <Badge variant="blue">SUSPENDIDO</Badge>
+                                                    if (r.justificacion) return <Badge variant="blue">{r.justificacion.toUpperCase()}</Badge>
+                                                    return (
+                                                        <button
+                                                            onClick={() => toggleAttendance(r)}
+                                                            className={`px-3 py-1.5 rounded-xl text-[10px] font-black transition-all active:scale-95 border-2 ${r.presente
+                                                                ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-100'
+                                                                : 'bg-white border-red-100 text-red-500 hover:border-red-500'
+                                                                }`}
+                                                        >
+                                                            {r.presente ? 'PRESENTE' : 'AUSENTE'}
+                                                        </button>
+                                                    )
+                                                })()}
                                             </td>
                                             <td className="px-4 py-3 text-slate-500">{r.docente_nombre}</td>
                                         </tr>
