@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { parseQRPayload } from '@/lib/qr'
-import { QrCode, CheckCircle2, XCircle, RefreshCw, Camera, Users, ListFilter, UserCheck, UserMinus } from 'lucide-react'
+import { QrCode, CheckCircle2, XCircle, RefreshCw, Camera, Users, ListFilter, UserCheck, UserMinus, FileText } from 'lucide-react'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import { format } from 'date-fns'
@@ -238,8 +238,9 @@ export default function AsistenciaPage() {
     }
 
     const presentCount = Object.values(todayAttendance).filter(v => v === true).length
+    const justifiedCount = Object.keys(todayJustifs).length
     const totalCount = allStudents.length
-    const absentCount = totalCount - presentCount
+    const absentCount = totalCount - presentCount - justifiedCount
 
     return (
         <div className="max-w-3xl mx-auto space-y-6 pb-20">
@@ -376,23 +377,32 @@ export default function AsistenciaPage() {
                     ) : (
                         /* SUMMARY TAB */
                         <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300 mx-4 sm:mx-0">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="bg-emerald-50 border border-emerald-100 p-5 rounded-3xl flex items-center justify-between shadow-sm">
+                            <div className="grid grid-cols-3 gap-3">
+                                <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-3xl flex items-center justify-between shadow-sm">
                                     <div>
                                         <p className="text-emerald-600 text-[10px] font-black uppercase tracking-widest mb-1">Presentes</p>
-                                        <p className="text-3xl font-black text-emerald-800 leading-none">{presentCount}</p>
+                                        <p className="text-2xl font-black text-emerald-800 leading-none">{presentCount}</p>
                                     </div>
-                                    <div className="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center">
-                                        <UserCheck className="w-6 h-6 text-emerald-600" />
+                                    <div className="w-10 h-10 bg-emerald-100 rounded-2xl flex items-center justify-center">
+                                        <UserCheck className="w-5 h-5 text-emerald-600" />
                                     </div>
                                 </div>
-                                <div className="bg-red-50 border border-red-100 p-5 rounded-3xl flex items-center justify-between shadow-sm">
+                                <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-3xl flex items-center justify-between shadow-sm">
+                                    <div>
+                                        <p className="text-indigo-600 text-[10px] font-black uppercase tracking-widest mb-1">Justificados</p>
+                                        <p className="text-2xl font-black text-indigo-800 leading-none">{loadingSummary ? '...' : justifiedCount}</p>
+                                    </div>
+                                    <div className="w-10 h-10 bg-indigo-100 rounded-2xl flex items-center justify-center">
+                                        <FileText className="w-5 h-5 text-indigo-600" />
+                                    </div>
+                                </div>
+                                <div className="bg-red-50 border border-red-100 p-4 rounded-3xl flex items-center justify-between shadow-sm">
                                     <div>
                                         <p className="text-red-600 text-[10px] font-black uppercase tracking-widest mb-1">Ausentes</p>
-                                        <p className="text-3xl font-black text-red-800 leading-none">{loadingSummary ? '...' : absentCount}</p>
+                                        <p className="text-2xl font-black text-red-800 leading-none">{loadingSummary ? '...' : absentCount}</p>
                                     </div>
-                                    <div className="w-12 h-12 bg-red-100 rounded-2xl flex items-center justify-center">
-                                        <UserMinus className="w-6 h-6 text-red-600" />
+                                    <div className="w-10 h-10 bg-red-100 rounded-2xl flex items-center justify-center">
+                                        <UserMinus className="w-5 h-5 text-red-600" />
                                     </div>
                                 </div>
                             </div>

@@ -60,6 +60,7 @@ export interface AttendanceReport {
     seccion: string
     jornada: string
     presente: boolean
+    justificacion?: 'permiso' | 'excusa'
     docente_nombre: string
 }
 

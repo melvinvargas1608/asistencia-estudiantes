@@ -13,10 +13,13 @@ interface GradeStats {
     totalF: number
     presentM: number
     presentF: number
+    justifiedM: number
+    justifiedF: number
     pctM: number
     pctF: number
     total: number
     present: number
+    justified: number
     pct: number
 }
 
@@ -83,14 +86,24 @@ export default function DocenteDashboard() {
                 .in('estudiante_id', studentIds)
                 .eq('fecha', todayStr)
 
+            const { data: justifs } = await supabase
+                .from('justificaciones')
+                .select('estudiante_id')
+                .in('estudiante_id', studentIds)
+                .eq('fecha', todayStr)
+
             const presentSet = new Set(
                 (attendance || []).filter(a => a.presente).map(a => a.estudiante_id)
+            )
+
+            const justifiedSet = new Set(
+                (justifs || []).map(j => j.estudiante_id)
             )
 
             // Build stats per grade
             const statsMap: Record<string, GradeStats> = {}
             for (const g of grados) {
-                statsMap[g] = { grado: g, totalM: 0, totalF: 0, presentM: 0, presentF: 0, pctM: 0, pctF: 0, total: 0, present: 0, pct: 0 }
+                statsMap[g] = { grado: g, totalM: 0, totalF: 0, presentM: 0, presentF: 0, justifiedM: 0, justifiedF: 0, pctM: 0, pctF: 0, total: 0, present: 0, justified: 0, pct: 0 }
             }
 
             for (const s of students) {
@@ -99,18 +112,22 @@ export default function DocenteDashboard() {
                 const isM = ['m', 'masculino', 'hombre', 'male', 'h'].includes(sexo)
                 const isF = ['f', 'femenino', 'mujer', 'female'].includes(sexo)
                 const isPresent = presentSet.has(s.id)
+                const isJustified = justifiedSet.has(s.id)
 
                 statsMap[s.grado].total++
                 if (isM) {
                     statsMap[s.grado].totalM++
                     if (isPresent) statsMap[s.grado].presentM++
+                    if (isJustified) statsMap[s.grado].justifiedM++
                 }
                 else if (isF) {
                     statsMap[s.grado].totalF++
                     if (isPresent) statsMap[s.grado].presentF++
+                    if (isJustified) statsMap[s.grado].justifiedF++
                 }
                 
                 if (isPresent) statsMap[s.grado].present++
+                if (isJustified) statsMap[s.grado].justified++
             }
 
             // Compute percentages
@@ -118,9 +135,9 @@ export default function DocenteDashboard() {
                 const st = statsMap[g]
                 return {
                     ...st,
-                    pctM: st.totalM > 0 ? Math.round((st.presentM / st.totalM) * 100) : 0,
-                    pctF: st.totalF > 0 ? Math.round((st.presentF / st.totalF) * 100) : 0,
-                    pct: st.total > 0 ? Math.round((st.present / st.total) * 100) : 0,
+                    pctM: (st.totalM - st.justifiedM) > 0 ? Math.round((st.presentM / (st.totalM - st.justifiedM)) * 100) : 0,
+                    pctF: (st.totalF - st.justifiedF) > 0 ? Math.round((st.presentF / (st.totalF - st.justifiedF)) * 100) : 0,
+                    pct: (st.total - st.justified) > 0 ? Math.round((st.present / (st.total - st.justified)) * 100) : 0,
                 }
             })
 
