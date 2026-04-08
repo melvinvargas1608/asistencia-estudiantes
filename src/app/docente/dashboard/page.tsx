@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Users, QrCode, FileText } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
+import Badge from '@/components/ui/Badge'
 import type { Docente } from '@/lib/types'
 
 interface GradeStats {
@@ -36,14 +37,15 @@ export default function DocenteDashboard() {
     const [docente, setDocente] = useState<Docente | null>(null)
     const [gradeStats, setGradeStats] = useState<GradeStats[]>([])
     const [loading, setLoading] = useState(true)
-    const now = new Date()
-    const today = format(now, "EEEE, d 'de' MMMM yyyy", { locale: es })
-    const dayOfWeek = now.getDay()
-    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
 
     useEffect(() => {
         const supabase = createClient()
         async function load() {
+            const now = new Date()
+            const todayStr = format(now, 'yyyy-MM-dd')
+            const dayOfWeek = now.getDay()
+            const isWeekEnd = dayOfWeek === 0 || dayOfWeek === 6
+
             const { data: { user } } = await supabase.auth.getUser()
             if (!user) return
 
@@ -56,15 +58,10 @@ export default function DocenteDashboard() {
             if (!doc) return
             setDocente(doc)
 
-            // Determine grados to display
-            const grados: string[] = doc.grados ?? []
-
-            if (isWeekend) {
+            if (isWeekEnd) {
                 setLoading(false)
                 return
             }
-
-            const todayStr = format(now, 'yyyy-MM-dd')
 
             // Fetch all students for this teacher
             const { data: students } = await supabase
@@ -153,6 +150,10 @@ export default function DocenteDashboard() {
         return `¡Bienvenido, Profesor ${docente?.nombre} ${docente?.apellido}!`
     }
 
+    const now = new Date()
+    const today = format(now, "EEEE, d 'de' MMMM yyyy", { locale: es })
+    const dayOfWeek = now.getDay()
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
     const grados = docente?.grados ?? []
 
 
@@ -223,9 +224,14 @@ export default function DocenteDashboard() {
                                             <p className="text-4xl font-black text-slate-800 leading-none">{gs.pct}%</p>
                                             <p className="text-xs text-slate-500 font-medium mt-1">Asistencia general</p>
                                         </div>
-                                        <div className="text-right">
-                                            <p className="text-lg font-black text-slate-700">{gs.present}/{gs.total}</p>
-                                            <p className="text-[10px] text-slate-400 font-medium">presentes</p>
+                                        <div className="text-right flex flex-col items-end">
+                                            <p className="text-lg font-black text-slate-700">{gs.present}/{gs.total - gs.justified}</p>
+                                            <p className="text-[10px] text-slate-400 font-medium uppercase tracking-tighter">asistencia neta</p>
+                                            {gs.justified > 0 && (
+                                                <Badge variant="blue" className="mt-1 transition-all animate-in fade-in zoom-in">
+                                                    {gs.justified} JUSTIFICADOS
+                                                </Badge>
+                                            )}
                                         </div>
                                     </div>
 
