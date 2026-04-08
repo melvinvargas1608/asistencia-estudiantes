@@ -64,6 +64,8 @@ export default function DocenteDashboard() {
             }
 
             // Fetch all students for this teacher
+            const teacherGrados: string[] = doc.grados ?? []
+
             const { data: students } = await supabase
                 .from('estudiantes')
                 .select('id, sexo, grado')
@@ -99,7 +101,7 @@ export default function DocenteDashboard() {
 
             // Build stats per grade
             const statsMap: Record<string, GradeStats> = {}
-            for (const g of grados) {
+            for (const g of teacherGrados) {
                 statsMap[g] = { grado: g, totalM: 0, totalF: 0, presentM: 0, presentF: 0, justifiedM: 0, justifiedF: 0, pctM: 0, pctF: 0, total: 0, present: 0, justified: 0, pct: 0 }
             }
 
@@ -128,7 +130,7 @@ export default function DocenteDashboard() {
             }
 
             // Compute percentages
-            const result = grados.map(g => {
+            const result = teacherGrados.map(g => {
                 const st = statsMap[g]
                 return {
                     ...st,
