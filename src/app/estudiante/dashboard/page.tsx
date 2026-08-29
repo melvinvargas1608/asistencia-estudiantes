@@ -4,13 +4,19 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Calendar, CheckCircle2, XCircle, TrendingUp } from 'lucide-react'
 import Badge from '@/components/ui/Badge'
-import type { Estudiante, Asistencia } from '@/lib/types'
+import type { Estudiante } from '@/lib/types'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
+interface AttendanceEntry {
+    id: string
+    fecha: string
+    estado: 'presente' | 'ausente' | 'permiso' | 'excusa'
+}
+
 export default function EstudianteDashboard() {
     const [student, setStudent] = useState<Estudiante | null>(null)
-    const [attendance, setAttendance] = useState<any[]>([])
+    const [attendance, setAttendance] = useState<AttendanceEntry[]>([])
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
@@ -38,7 +44,7 @@ export default function EstudianteDashboard() {
                 .order('fecha', { ascending: false })
                 .limit(30)
 
-            const combined: any[] = []
+            const combined: AttendanceEntry[] = []
             att?.forEach(a => combined.push({ id: `att-${a.id}`, fecha: a.fecha, estado: a.presente ? 'presente' : 'ausente' }))
             justs?.forEach(j => combined.push({ id: `jus-${j.id}`, fecha: j.fecha, estado: j.tipo }))
 

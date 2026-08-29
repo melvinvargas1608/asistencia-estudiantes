@@ -8,6 +8,7 @@ import { es } from 'date-fns/locale'
 import Badge from '@/components/ui/Badge'
 import { Ban, AlertTriangle } from 'lucide-react'
 import type { Docente, Suspension } from '@/lib/types'
+import { normalizeSexo } from '@/lib/utils'
 
 interface GradeStats {
     grado: string
@@ -118,9 +119,9 @@ export default function DocenteDashboard() {
 
             for (const s of students) {
                 if (!statsMap[s.grado]) continue
-                const sexo = (s.sexo || '').toLowerCase().trim()
-                const isM = ['m', 'masculino', 'hombre', 'male', 'h'].includes(sexo)
-                const isF = ['f', 'femenino', 'mujer', 'female'].includes(sexo)
+                const sexo = normalizeSexo(s.sexo)
+                const isM = sexo === 'M'
+                const isF = sexo === 'F'
                 const isPresent = presentSet.has(s.id)
                 const isJustified = justifiedSet.has(s.id)
 

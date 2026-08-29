@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { generateStudentQR } from '@/lib/qr'
 import { parseStudentFile } from '@/lib/import'
@@ -9,10 +9,11 @@ import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import {
     Search, Plus, Upload, Pencil, Trash2, QrCode, X,
-    AlertTriangle, Download, ChevronDown, Lock
+    AlertTriangle, Download, Lock
 } from 'lucide-react'
 import type { Docente, Estudiante } from '@/lib/types'
 import { GRADOS, JORNADAS, SECCIONES } from '@/lib/types'
+import { formatSexo, getErrorMessage } from '@/lib/utils'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -101,7 +102,6 @@ export default function EstudiantesPage() {
     // ── Add Student ──────────────────────────────────────────────────────────
     async function handleAdd(data: StudentForm) {
         if (!docente) return
-        const supabase = createClient()
 
         // Generate QR
         const tempId = crypto.randomUUID()
@@ -196,8 +196,8 @@ export default function EstudiantesPage() {
             setShowReset(false)
             setNewPassword('')
             alert('Contraseña actualizada correctamente.')
-        } catch (err: any) {
-            alert(err.message)
+        } catch (err: unknown) {
+            alert(getErrorMessage(err, 'Error al restablecer contraseña'))
         } finally {
             setResetLoading(false)
         }
@@ -230,8 +230,8 @@ export default function EstudiantesPage() {
             setShowImport(false)
             setImportFile(null)
             await fetchStudents(docente.id)
-        } catch (err: any) {
-            setImportError(err.message || 'Error al importar')
+        } catch (err: unknown) {
+            setImportError(getErrorMessage(err, 'Error al importar'))
         } finally {
             setImportLoading(false)
         }
@@ -324,15 +324,10 @@ export default function EstudiantesPage() {
                                         <td className="px-4 py-3 text-slate-600">{s.apellido}</td>
                                         <td className="px-4 py-3 font-mono text-slate-500 text-xs">{s.numero_identidad}</td>
                                         <td className="px-4 py-3 text-slate-600">
-                                            {(() => {
-                                                const low = (s.sexo || '').toLowerCase().trim()
-                                                if (['m', 'masculino', 'hombre', 'male', 'h'].includes(low)) return 'Masculino'
-                                                if (['f', 'femenino', 'mujer', 'female'].includes(low)) return 'Femenino'
-                                                return s.sexo
-                                            })()}
+                                            {formatSexo(s.sexo)}
                                         </td>
                                         <td className="px-4 py-3">
-                                            <Badge variant={gradoColor[s.grado] as any || 'gray'}>{s.grado}</Badge>
+                                            <Badge variant={gradoColor[s.grado] || 'gray'}>{s.grado}</Badge>
                                         </td>
                                         <td className="px-4 py-3 text-slate-600">{s.seccion}</td>
                                         <td className="px-4 py-3"><Badge variant="gray">{s.jornada}</Badge></td>
@@ -545,6 +540,8 @@ export default function EstudiantesPage() {
                         </div>
                         {selected.qr_code ? (
                             <div className="border-4 border-slate-100 rounded-2xl overflow-hidden">
+                                {/* QR is a base64 data URL; next/image does not optimize data URLs */}
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img src={selected.qr_code} alt="QR Code" className="w-56 h-56" />
                             </div>
                         ) : (

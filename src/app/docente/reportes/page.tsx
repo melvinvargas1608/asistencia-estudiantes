@@ -3,12 +3,12 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { exportAttendancePDF } from '@/lib/pdf'
-import { FileText, Download, Filter } from 'lucide-react'
+import { Download, Filter } from 'lucide-react'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import { GRADOS, SECCIONES, type AttendanceReport, type Docente, type Suspension } from '@/lib/types'
 import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { formatSexo } from '@/lib/utils'
 
 export default function ReportesPage() {
     const [docente, setDocente] = useState<Docente | null>(null)
@@ -275,12 +275,7 @@ export default function ReportesPage() {
                                             <td className="px-4 py-3 font-medium text-slate-800">{r.nombre}</td>
                                             <td className="px-4 py-3 text-slate-600">{r.apellido}</td>
                                             <td className="px-4 py-3 text-slate-600 text-xs">
-                                                {(() => {
-                                                    const low = (r.sexo || '').toLowerCase().trim()
-                                                    if (['m', 'masculino', 'hombre', 'male', 'h'].includes(low)) return 'Masculino'
-                                                    if (['f', 'femenino', 'mujer', 'female'].includes(low)) return 'Femenino'
-                                                    return r.sexo
-                                                })()}
+                                                {formatSexo(r.sexo)}
                                             </td>
                                             <td className="px-4 py-3 font-mono text-xs text-slate-500">{r.numero_identidad}</td>
                                             <td className="px-4 py-3"><Badge variant="gray">{r.grado}</Badge></td>

@@ -1,14 +1,14 @@
 'use client'
 
 import { useState, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { LogIn, UserCircle, ShieldCheck, AlertCircle, Eye, EyeOff, UserPlus, ArrowLeft, GraduationCap, School, CheckSquare, Square } from 'lucide-react'
+import { LogIn, UserCircle, ShieldCheck, AlertCircle, Eye, EyeOff, UserPlus, ArrowLeft, GraduationCap, CheckSquare, Square, RefreshCw } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import { GRADOS, SECCIONES } from '@/lib/types'
+import { getErrorMessage } from '@/lib/utils'
 
 function LoginForm() {
-    const router = useRouter()
     const searchParams = useSearchParams()
     const [view, setView] = useState<'login' | 'register' | 'activate'>('login')
 
@@ -60,8 +60,8 @@ function LoginForm() {
 
             const next = searchParams.get('next')
             window.location.href = next || (role === 'docente' ? '/docente/dashboard' : '/estudiante/dashboard')
-        } catch (err: any) {
-            setError(err.message || 'Error al iniciar sesión')
+        } catch (err: unknown) {
+            setError(getErrorMessage(err, 'Error al iniciar sesión'))
             setLoading(false)
         }
     }
@@ -119,8 +119,8 @@ function LoginForm() {
             })
 
             window.location.href = '/docente/dashboard'
-        } catch (err: any) {
-            setError(err.message)
+        } catch (err: unknown) {
+            setError(getErrorMessage(err, 'Error al registrar'))
             setLoading(false)
         }
     }
@@ -164,8 +164,8 @@ function LoginForm() {
             if (loginError) throw loginError
 
             window.location.href = '/estudiante/dashboard'
-        } catch (err: any) {
-            setError(err.message)
+        } catch (err: unknown) {
+            setError(getErrorMessage(err, 'Error al activar'))
             setLoading(false)
         }
     }
@@ -490,8 +490,4 @@ export default function LoginPage() {
             <LoginForm />
         </Suspense>
     )
-}
-
-function RefreshCw(props: any) {
-    return <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" ><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M3 21v-5h5" /></svg>
 }

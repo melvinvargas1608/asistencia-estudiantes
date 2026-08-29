@@ -8,7 +8,9 @@ import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import type { Estudiante, Justificacion, Suspension } from '@/lib/types'
+import type { Estudiante, Suspension } from '@/lib/types'
+import type { Html5Qrcode, CameraDevice } from 'html5-qrcode'
+import { getErrorMessage } from '@/lib/utils'
 
 type ScanResult = {
     student: Estudiante
@@ -17,14 +19,14 @@ type ScanResult = {
 }
 
 export default function AsistenciaPage() {
-    const html5QrRef = useRef<any>(null)
+    const html5QrRef = useRef<Html5Qrcode | null>(null)
     const [scanning, setScanning] = useState(false)
     const [docenteId, setDocenteId] = useState<string | null>(null)
     const [activeTab, setActiveTab] = useState<'scanner' | 'summary'>('scanner')
 
     // States for Scanner
     const [results, setResults] = useState<ScanResult[]>([])
-    const [cameras, setCameras] = useState<any[]>([])
+    const [cameras, setCameras] = useState<CameraDevice[]>([])
     const [selectedCamera, setSelectedCamera] = useState<string>('')
     const [lastScan, setLastScan] = useState<string | null>(null)
     const [lastResult, setLastResult] = useState<ScanResult | null>(null)
@@ -63,6 +65,8 @@ export default function AsistenciaPage() {
                 html5QrRef.current.stop().catch(() => { })
             }
         }
+        // Mount-only: load teacher + initial data. Intentionally omits fetchDailyData/isWeekend deps.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
     async function fetchDailyData(dId: string) {
@@ -186,7 +190,7 @@ export default function AsistenciaPage() {
             const { Html5Qrcode } = await import('html5-qrcode')
 
             if (html5QrRef.current) {
-                try { await html5QrRef.current.stop() } catch (e) { }
+                try { await html5QrRef.current.stop() } catch { }
                 html5QrRef.current = null
             }
 
@@ -215,15 +219,15 @@ export default function AsistenciaPage() {
                 undefined
             )
             setScanning(true)
-        } catch (err: any) {
-            setError(`Error de hardware: ${err.message || 'No se pudo iniciar la cámara'}`)
+        } catch (err: unknown) {
+            setError(`Error de hardware: ${getErrorMessage(err, 'No se pudo iniciar la cámara')}`)
             setScanning(false)
         }
     }
 
     async function stopScanner() {
         if (html5QrRef.current) {
-            try { await html5QrRef.current.stop() } catch (e) { }
+            try { await html5QrRef.current.stop() } catch { }
             html5QrRef.current = null
         }
         setScanning(false)

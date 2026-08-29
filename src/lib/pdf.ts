@@ -3,6 +3,7 @@ import autoTable from 'jspdf-autotable'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import type { AttendanceReport } from './types'
+import { formatSexo } from './utils'
 
 export function exportAttendancePDF(
     records: AttendanceReport[],
@@ -35,12 +36,7 @@ export function exportAttendancePDF(
             r.fecha,
             r.nombre,
             r.apellido,
-            (() => {
-                const low = (r.sexo || '').toLowerCase().trim()
-                if (['m', 'masculino', 'hombre', 'male', 'h'].includes(low)) return 'Masculino'
-                if (['f', 'femenino', 'mujer', 'female'].includes(low)) return 'Femenino'
-                return r.sexo
-            })(),
+            formatSexo(r.sexo),
             r.numero_identidad,
             r.grado,
             r.seccion,

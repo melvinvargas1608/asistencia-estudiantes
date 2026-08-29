@@ -35,6 +35,8 @@ export default function MiQRPage() {
                     ) : student?.qr_code ? (
                         <>
                             <div className="border-4 border-slate-100 rounded-2xl overflow-hidden">
+                                {/* QR is a base64 data URL; next/image does not optimize data URLs */}
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img src={student.qr_code} alt="Mi Código QR" className="w-64 h-64" />
                             </div>
 
